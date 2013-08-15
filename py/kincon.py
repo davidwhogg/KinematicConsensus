@@ -73,7 +73,7 @@ class SixPosition:
         d = self.get_distance()
         dm = 5. * np.log10(100. * d) # magic number 100 for kpc -> (10 pc)
         pm = np.array([0., 0.]) # HACK
-        rv = np.dot(self.get_helio_3vel(), self.get_helio_3pos()) / d
+        rv = np.dot(self.get_helio_3vel(), self.get_helio_3pos() / d)
         return rd, dm, pm, rv
 
 class Star:
@@ -85,9 +85,9 @@ class Star:
         - `lb_ivar`: inverse variance tensor (2x2) for `lb` measurement (deg^{-2})
         - `dm`: inferred distance modulus (mag)
         - `dm_ivar`: inverse variance for `dm` measurement (mag^{-2})
-        - `pm`: measured proper motion vector (alphadot, deltadot) (mas yr^{-1})
+        - `pm`: measured proper motion vector (l and b directions) (mas yr^{-1})
         - `pm_ivar`: inverse variance tensor (2x2) for `pm` measurement (mas^{-2} yr^2)
-        - `rv`: measured radial velocity (km s^{-1})
+        - `rv`: measured radial velocity (km s^{-1}), positive red-shifted, negative blue-shifted
         - `rv_ivar`: inverse variance for `rv` measurement (km^{-2} s^2)
 
         output:
@@ -95,6 +95,7 @@ class Star:
 
         comments:
         - If a quantity (eg `pm`) is unmeasured, set corresponding inverse variance (eg `pm_ivar`) to zero.
+        - pm quantity should be the isotropic angular velocity components, not just l-dot, b-dot (ie, there is a cosine in there).
         - ONLY works for distance modulus measurements, DOESN'T work for parallax measurements (yet).
         """
         self.lb = lb
