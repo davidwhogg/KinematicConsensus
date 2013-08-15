@@ -34,8 +34,9 @@
 
 
 \begin{document}
-\centerline{\Large\bf Notes on Identifying and Characterizing the (Stellar)}
-\centerline{\Large\bf Halo-Substructure in 'Integral-of-Motion' (Action?) Space}
+\centerline{\Large\bf Kinematic Consensus:}
+\centerline{\Large\bf Identifying and Characterizing the (Stellar)}
+\centerline{\Large\bf Halo-Substructure in 'Integral-of-Motion' Space}
 
 \vspace{1em}
 \centerline{\large Hans-Walter Rix \& David W. Hogg }
@@ -76,15 +77,17 @@ of observational constrains (estimates and errors). We can re-write this as
 $$p(\vIi | \dobsi,\Phi )={\displaystyle \int \delta \bigl( \vIi - \vI_{pred}(\dtrue,\Phi )\bigr ) 
 \ \frac{1}{Z}\ p(\dobsi | \dtrue )\  p(\dtrue )\ d \dtrue }\ ,$$
 where the subscript $i$ refers to any one particular star, and where we have inserted $\Phi (\vx)$
-to remind the reader of the full $\vx ,\Phi \rightarrow \vI$ dependence..
-
-[{\sl Now it gets hairy:  one should do produce a sampling of $p(\vI | \dobs )$, by sampling the
-right hand side. But $p(\vI)$ can come in ways that a trivial {\it Ansatz} for $p(\dtrue)$ does not capture, or not?} slightly confused...]
+to remind the reader of the full $\vx ,\Phi \rightarrow \vI$ dependence.
+This expression requires a prior $p(\dtrue)$ on the ``true'' values of the observables.
+This can be thought of as a transformation from a justified prior pdf in action space
+(with, say, an assumption of full angle mixing),
+or the prior can be specified in position-velocity space, or in observable space.
+This choice should probably be one of convenience, not principle, at least for now.
 
 \section{``Combining'' the $p(\vIi | \dobsi,\Phi )$:}
 
 The above procedure results in a statement about the probability of \IoM s for a given star. But we want to know in the context of stream identification whether there are patches of \IoM space that can explain many stars. So, we are looking for the finite number of "patches" in \IoM space that 
-can explain many stars.
+can explain many stars.  That's the "consensus" in the name of the project.
 
 \section{How Hogg proposes we proceed:}
 \begin{itemize}
@@ -127,15 +130,14 @@ can explain many stars.
   better than anything approximate done with these interim samples.)
 \end{itemize}
 
-\section{Baby Steps:}
+\section{Next steps:}
 
-Random thoughts: 
 \begin{itemize}
-\item slightly wrong potential: patch stays patch, but just a bit suretched out and in the ``wrong'' place
+\item Work with a slightly wrong potential: patch stays patch, but just a bit suretched out and in the ``wrong'' place.
 
-\item stream is not orbit: patch is stretched out...
+\item Show that priors don't matter very much; work with clearly wrong priors.
 
-\item to stars: make mock data that are all in one plane; but observe off-center from a skew angle...
+\item Put down a stream that is not an orbit: patch is stretched out; might need ``friends of friends'' or somesuch.
 
 \end{itemize}
 
