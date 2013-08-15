@@ -1,0 +1,144 @@
+\documentclass[12pt,a4paper,twoside]{article}
+\usepackage{amssymb,amsmath}
+\setlength{\oddsidemargin}{0em}
+\setlength{\evensidemargin}{0em}
+\setlength{\textwidth}{460pt}
+\setlength{\textheight}{680pt}
+\setlength{\topmargin}{1em}
+\setlength{\voffset}{-25pt}
+\newcommand{\Dlum}{D_{lum}}
+\newcommand{\D}{{\mathrm D}}
+\newcommand{\dD}{\delta{\mathrm D}}
+\newcommand{\vlos}{v_{los}}
+\newcommand{\dvlos}{\delta\vlos}
+\newcommand{\vperp}{v_\perp}
+\newcommand{\vx}{\vec{x}}
+\newcommand{\vv}{\vec{v}}
+\newcommand{\xv}{(\vx,\vv)}
+\newcommand{\vI}{\vec{I}}
+\newcommand{\eg}{{\it e.g.~}}
+\newcommand{\IoM}{{\sl I.o.M.}}
+\newcommand{\vL}{\vec{L}}
+\newcommand{\dtrue}{\vec{\mathcal D}_{\mathrm true}}
+\newcommand{\dobs}{\vec{\mathcal D}_{\mathrm obs}}
+
+\newcommand{\vxi}{\vec{x}_i}
+\newcommand{\vvi}{\vec{v}_i}
+\newcommand{\vxik}{\vec{x}_{ik}}
+\newcommand{\vvik}{\vec{v}_{ik}}
+\newcommand{\vIi}{\vec{I}_i}
+\newcommand{\vIik}{\vec{I}_{ik}}
+\newcommand{\vIikset}{\{\vIik\}_{k=1}^K}
+\newcommand{\dtruei}{\vec{\mathcal D}_{{\mathrm true},i}}
+\newcommand{\dobsi}{\vec{\mathcal D}_{{\mathrm obs},i}}
+
+
+\begin{document}
+\centerline{\Large\bf Notes on Identifying and Characterizing the (Stellar)}
+\centerline{\Large\bf Halo-Substructure in 'Integral-of-Motion' (Action?) Space}
+
+\vspace{1em}
+\centerline{\large Hans-Walter Rix \& David W. Hogg }
+\vspace{0.5em}
+
+\section{Starting Point:}
+
+The framework are thought on how to quantify and characterize stellar Galsctic 
+halo substructure in the context of Zhitai Zheng's thesis and the SEGUE K-giant sample (later LAMOST). 
+
+Let's presume we have N-thousand halo stars with precise angular positions $\alpha,\delta$, 
+reasonable distance estimates $\D,\dD$ and $\vlos,\dvlos$, but no useful measurement 
+of $\vperp$. We presume that a good fraction of the stellar halo stars come from disrupted stellar streams, and hence form sub-ensembles of stars with similar orbits (spread out in orbital phase); consequently these stars should not form a smooth distribution in $(\vx,\vv)$, or orbit-space, but exhibit sub-structure. 
+
+There is a simple and published approach (Starkenburg et al 2009, Xue et al 2011) to quantifying sub-structure by looking at the statistics of the number of close pairs in the 4-dim space of
+$(\vx,\vlos)$, compared to a smooth, or a randomized distribution. However, the {\it configuration space}, $(\vx,\vv)$ is not the right set of coordinates. We are looking for stars on similar {\sl orbits} and orbits are characterized \eg by their {\sl integrals of motion}, $\vI$. 
+
+For identifying subsets of stars that are on similar orbits we try to devise a simple way 
+that is based on the $\vI$ coordinates, not $(\vx,\vv)$. 
+
+\section{Basic Approach:}
+
+In what we describe below, an enormous simplification arises if we assume that the gravitational potential that stars in the halo (say, $R_{GC}>20$~kpc) feel is spherical. Currently there is a great deal of debate on the halo shape: oblate, prolate, triaxial, spherical? 
+
+In a (time-independent) spherical potential there are four \IoM 's, the energy and the angular momentum vector. Both can be calculated easily from $\xv$, 
+$$E\equiv \frac{1}{2}\vv\ ^2+\Phi (|\vx |)\ \ {\mathrm{and}}\ \ \vL\equiv \vx \times \vv .$$
+If one has chosen a spherical coordinate system (with the polar direction perpendicular to the galactic plane), one may use $E$, $L\equiv |\vL |$, and the angles $(\theta,\phi)$ that describe 
+the direction of $\vL / L$, as the \IoM .
+
+If we had perfect knowledge of $\xv$, that would trivially map into $\vI$. In practice, we have 
+$\D$ only to $\dD / \D \approx 0.15$, $\dvlos \approx 5-10$ km/s; about the two components of $\vperp$ we have only a {\it prior} expectation, e.g. that their probabilities can be described by a Gaussian with $\sim 120$~km/s width.
+
+As the observational information is incomplete, and there are errors, we get for each star
+$$p(\vI | \dobs )={\displaystyle \int p(\vI | \dtrue) p(\dtrue | \dobs ) d \dtrue }\ ,$$
+
+where $\dtrue$ is the 6-D $\vx$-space vector of possible true data, and $\dobs$ is the set 
+of observational constrains (estimates and errors). We can re-write this as
+$$p(\vIi | \dobsi,\Phi )={\displaystyle \int \delta \bigl( \vIi - \vI_{pred}(\dtrue,\Phi )\bigr ) 
+\ \frac{1}{Z}\ p(\dobsi | \dtrue )\  p(\dtrue )\ d \dtrue }\ ,$$
+where the subscript $i$ refers to any one particular star, and where we have inserted $\Phi (\vx)$
+to remind the reader of the full $\vx ,\Phi \rightarrow \vI$ dependence..
+
+[{\sl Now it gets hairy:  one should do produce a sampling of $p(\vI | \dobs )$, by sampling the
+right hand side. But $p(\vI)$ can come in ways that a trivial {\it Ansatz} for $p(\dtrue)$ does not capture, or not?} slightly confused...]
+
+\section{``Combining'' the $p(\vIi | \dobsi,\Phi )$:}
+
+The above procedure results in a statement about the probability of \IoM s for a given star. But we want to know in the context of stream identification whether there are patches of \IoM space that can explain many stars. So, we are looking for the finite number of "patches" in \IoM space that 
+can explain many stars.
+
+\section{How Hogg proposes we proceed:}
+\begin{itemize}
+\item Choose an interim prior $p_0(\vx, \vv)$ on either the constants
+  (integrals) of the motion or else on the true positions $(\vx,
+  \vv)$.
+  Let's go with the latter for now, because it is easy.
+  One option for interim prior would be the singular isothermal sphere,
+  which is $p_0(\vx)\propto |\vx|^{-2}$ and $p_0(\vv)=N(\vv|0,\sigma_v^2)$,
+  where $N(v|m,V)$ is the Gaussian for $v$ given mean $m$ and variance $V$,
+  and $\sigma_v^2$ is the (squared) velocity dispersion (of the Halo).
+
+\item For each star we have data $\dobsi$ and errors
+  and therefore an associated implied likelihood function $p(\dobsi|\vxi,\vvi)$,
+  where $\vxi$ and $\vvi$ are the true position and velocity of star $i$.
+  From this and the interim prior $p_0(\vxi,\vvi)$ we can construct an
+  interim posterior pdf $p(\vxi,\vvi|\dobsi)$.
+  We can also MCMC sample this to produce $K$ samples $(\vxik,\vvik)$
+  of the interim posterior pdf.
+  Each sample $(\vxik,\vvik)$ is a precise (exact) 6-vector phase-space position.
+
+\item Choose an interim potential $\phi_0$.
+  This does not have to be the same as that used to generate the interim prior, but it certainly can be.
+  From each exact 6-space position sample $(\vxik,\vvik)$,
+  compute the associated (three or four) constants of motion $\vIik$.
+  The choice of interim potential $\phi_0$ should be made to make this calculation easy!
+  This gives, for each star $i$, a set $\vIikset$ of interim-posterior samples in the integral space.
+
+\item Ask:
+  Does the set $\vIikset$ for star $i$ ``overlap'' the set for star $i'$?
+
+\item (Harder) ask:
+  Are there small neighborhoods in $\vI$-space
+  where multiple different star sets $\vIikset$ overlap?
+
+\item (There are harder things we could do that would be more
+  inferential or justified or righteous.  But I think we should just
+  use this for ``discovery'' not characterization, since KVJ, JB, and
+  I are all (separately) writing characterization papers that will be
+  better than anything approximate done with these interim samples.)
+\end{itemize}
+
+\section{Baby Steps:}
+
+Random thoughts: 
+\begin{itemize}
+\item slightly wrong potential: patch stays patch, but just a bit suretched out and in the ``wrong'' place
+
+\item stream is not orbit: patch is stretched out...
+
+\item to stars: make mock data that are all in one plane; but observe off-center from a skew angle...
+
+\end{itemize}
+
+
+
+\end{document}
