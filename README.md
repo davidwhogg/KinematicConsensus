@@ -1,10 +1,11 @@
 KinematicConsensus
 ==================
+finding kinematically related Milky Way Halo stars in the face of noisy and missing data
 
 authors
 -------
-- David W. Hogg
-- Hans-Walter Rix
+- David W. Hogg (NYU) (MPIA)
+- Hans-Walter Rix (MPIA)
 
 license
 -------
