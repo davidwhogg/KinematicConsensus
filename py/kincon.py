@@ -72,13 +72,15 @@ class SixPosition:
         lb = self.get_lb()
         d = self.get_distance()
         dm = 5. * np.log10(100. * d) # magic number 100 for kpc -> (10 pc)
+        dhat = self.get_helio_3pos() / d
+        v = self.get_helio_3vel()
+        rv = np.dot(v, dhat)
         pm = np.array([0., 0.]) # HACK
-        rv = np.dot(self.get_helio_3vel(), self.get_helio_3pos() / d)
-        return rd, dm, pm, rv
+        return lb, dm, pm, rv
 
 class Star:
 
-    def __init__(self, rd, rd_ivar, dm, dm_ivar, pm, pm_ivar, rv, rv_ivar):
+    def __init__(self, lb, lb_ivar, dm, dm_ivar, pm, pm_ivar, rv, rv_ivar):
         """
         inputs:
         - `lb`: measured celestial position (l, b) (deg)
@@ -120,8 +122,8 @@ class Star:
         - assumes all noise is Gaussian, duh.
         - assumes all `_ivar` variables are constants (not free parameters).
         """
-        rd, dm, pm, rv = sixpos.get_observables()
-        return -0.5 * (np.dot(np.dot(rd - self.rd, self.rd_ivar), rd - self.rd)
+        lb, dm, pm, rv = sixpos.get_observables()
+        return -0.5 * (np.dot(np.dot(lb - self.lb, self.lb_ivar), lb - self.lb)
                        + self.dm_ivar * (dm - self.dm) ** 2
                        + np.dot(np.dot(pm - self.pm, self.pm_ivar), pm - self.pm)
                        + self.rv_ivar * (rv - self.rv) ** 2
