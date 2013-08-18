@@ -178,6 +178,19 @@ class ObservedStar:
             return lnp + self.ln_likelihood(sixpos)
         return -np.inf
 
+    def get_posterior_samples(self):
+        """
+        Run emcee to generate posterior samples of true position given measured position.
+
+        bugs:
+        - HACK: NOT YET WRITTEN
+        """
+        # setup emcee
+        # initialize walkers
+        # burn in
+        # sample
+        return None
+
 def unit_tests():
     sixpos = SixPosition([0., 0., 0., 0., 0., 0.])
     lb, dm, pm, rv = sixpos.get_observables()
