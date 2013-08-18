@@ -4,6 +4,7 @@ Copyright 2013 David W. Hogg (NYU)
 """
 
 import numpy as np
+import emcee
 
 class SixPosition:
 
