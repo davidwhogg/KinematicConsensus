@@ -5,6 +5,7 @@ Copyright 2013 David W. Hogg (NYU)
 
 import numpy as np
 import emcee
+import triangle as tri
 
 class SixPosition:
 
@@ -195,7 +196,7 @@ class ObservedStar:
             return lnp + self.ln_likelihood(sixpos)
         return -np.inf
 
-    def get_posterior_samples(self):
+    def get_posterior_samples(self, nsamples):
         """
         Run emcee to generate posterior samples of true position given measured position.
 
@@ -206,7 +207,7 @@ class ObservedStar:
         pf = self.get_fiducial_sixpos().get_sixpos()
         p0 = [pf + 1e-6 * np.random.normal(ndim) for i in range(nwalkers)]
         sampler = emcee.EnsembleSampler(nwalkers, ndim, self.ln_posterior)
-        sampler.run_mcmc(p0, 1000)
+        sampler.run_mcmc(p0, nsamples)
         return sampler.chain, sampler.lnprobability
 
 def unit_tests():
@@ -257,6 +258,17 @@ def unit_tests():
     print "unit_tests(): all tests passed"
     return True
 
+def triangle_plot_chain(chain, lnprob, prefix):
+    """
+    Make a 7x7 triangle.
+    """
+    nx, ny, nq = chain.shape
+    foo = np.concatenate((chain.reshape((nx * ny, nq)), lnprob.reshape((nx * ny, 1))), axis=1)
+    labels = [r"$x$", r"$y$", r"$z$", r"$v_x$", r"$v_y$", r"$v_z$", r"$\ln p$", r"hello"]
+    fig = tri.corner(foo.transpose(), labels=labels)
+    fig.savefig(prefix + "a.png")
+    return None
+                   
 def figure_01():
     """
     Make figure 1.
@@ -268,14 +280,14 @@ def figure_01():
     sixpos = SixPosition([-32., 45., 12., 115., 95., 160.])
     lb, dm, pm, rv = sixpos.get_observables()
     lb_ivar = np.diag([1e9, 1e9]) # deg^{-2}
-    dm_ivar = 1. / (0.15 ** 2) # mag^{-2}
+    dm_ivar = 1. / (0.30 ** 2) # mag^{-2}
     pm_ivar = np.diag([0., 0.]) # mas^{-2} yr^2
     rv_ivar = 1. # km^{-2} s^2
     star = ObservedStar(lb, lb_ivar, dm, dm_ivar, pm, pm_ivar, rv, rv_ivar)
-    chain, lnprob = star.get_posterior_samples()
+    chain, lnprob = star.get_posterior_samples(2048)
     print chain.shape, lnprob.shape
     print chain[:,-1,:], lnprob[:,-1]
-    ## make triangle plot!
+    triangle_plot_chain(chain[:,-512::8,:], lnprob[:,-512::8], "figure_01")
     return None
 
 if __name__ == "__main__":
