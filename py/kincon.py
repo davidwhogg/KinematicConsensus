@@ -34,7 +34,7 @@ class SixPosition:
         """
         return np.array([-8., 0., 0., 0., 225., 0.])
 
-    def get_helio_pos(self):
+    def get_helio_sixpos(self):
         """
         output:
         - heliocentric 6-vector phase-space position (kpc, km s^{-1})
@@ -46,14 +46,14 @@ class SixPosition:
         output:
         - heliocentric 3-vector spatial position (kpc)
         """
-        return self.get_helio_pos()[:3]
+        return self.get_helio_sixpos()[:3]
 
     def get_helio_3vel(self):
         """
         output:
         - heliocentric 3-vector velocity (km s^{-1})
         """
-        return self.get_helio_pos()[3:]
+        return self.get_helio_sixpos()[3:]
 
     def get_lb(self):
         """
@@ -133,7 +133,7 @@ class ObservedStar:
         bugs:
         - HACK: NOT YET WRITTEN
         """
-        return None
+        return SixPosition([20., 0., 0., 0., 0., 0.])
 
     def ln_prior(self, sixpos):
         """
@@ -172,7 +172,14 @@ class ObservedStar:
                        + np.dot(np.dot(pm - self.pm, self.pm_ivar), pm - self.pm)
                        + self.rv_ivar * (rv - self.rv) ** 2)
 
-    def ln_posterior(self, sixpos):
+    def ln_posterior(self, sp):
+        """
+        The usual, now with `inf` catches.
+
+        comments:
+        - input is a `ndarray` not a `SixPosition` because of `emcee` requirements.
+        """
+        sixpos = SixPosition(sp)
         lnp = self.ln_prior(sixpos)
         if np.isfinite(lnp):
             return lnp + self.ln_likelihood(sixpos)
@@ -184,11 +191,14 @@ class ObservedStar:
 
         bugs:
         - HACK: NOT YET WRITTEN
+        - Lots of things hard-coded.
         """
-        # setup emcee
-        # initialize walkers
-        # burn in
-        # sample
+        ndim, nwalkers = 6, 16
+        pf = self.get_fiducial_sixpos().get_sixpos()
+        p0 = [pf + 1e-6 * np.random.normal(ndim) for i in range(nwalkers)]
+        sampler = emcee.EnsembleSampler(nwalkers, ndim, self.ln_posterior)
+        p1, lnprob1, rstate = sampler.run_mcmc(p0, 500)
+        p1, lnprob1, rstate = sampler.run_mcmc(p1, 1000)
         return None
 
 def unit_tests():
@@ -240,7 +250,7 @@ def figure_01():
     pm_ivar = np.diag([0., 0.]) # mas^{-2} yr^2
     rv_ivar = 1. # km^{-2} s^2
     star = ObservedStar(lb, lb_ivar, dm, dm_ivar, pm, pm_ivar, rv, rv_ivar)
-    print star.ln_posterior(sixpos)
+    star.get_posterior_samples()
     return None
 
 if __name__ == "__main__":
