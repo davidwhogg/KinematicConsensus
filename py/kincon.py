@@ -32,7 +32,7 @@ class SixPosition:
         output:
         - the position of the Sun in 6-vector phase space (kpc, kpc, kpc, km s^{-1}, km s^{-1}, km s^{-1})
         """
-        return np.array([-8., 0., 0., 0., 225., 0.])
+        return np.array([-8., 0., 0., 0., 220., 0.])
 
     def get_helio_sixpos(self):
         """
@@ -131,9 +131,19 @@ class ObservedStar:
         - SixPosition object corresponding to (lb, dm, pm, rv)
 
         bugs:
-        - HACK: NOT YET WRITTEN
+        - HACK: `pm` part of this NOT YET WRITTEN
         """
-        return SixPosition([20., 0., 0., 0., 0., 0.])
+        sixpos = np.zeros(6)
+        foo = SixPosition(sixpos)
+        x = foo.get_sun_sixpos()
+        d = 0.01 * 10. ** (0.2 * self.dm)
+        x[0] += d * np.cos(np.deg2rad(self.lb[0])) * np.cos(np.deg2rad(self.lb[1]))
+        x[1] += d * np.sin(np.deg2rad(self.lb[0])) * np.cos(np.deg2rad(self.lb[1]))
+        x[2] += d * np.sin(np.deg2rad(self.lb[1]))
+        dhat = x[:3] / d
+        x[3:] += self.rv * dhat
+        ### HACK: MISSING pm PART
+        return SixPosition(x)
 
     def ln_prior(self, sixpos):
         """
@@ -190,16 +200,14 @@ class ObservedStar:
         Run emcee to generate posterior samples of true position given measured position.
 
         bugs:
-        - HACK: NOT YET WRITTEN
         - Lots of things hard-coded.
         """
         ndim, nwalkers = 6, 16
         pf = self.get_fiducial_sixpos().get_sixpos()
         p0 = [pf + 1e-6 * np.random.normal(ndim) for i in range(nwalkers)]
         sampler = emcee.EnsembleSampler(nwalkers, ndim, self.ln_posterior)
-        p1, lnprob1, rstate = sampler.run_mcmc(p0, 500)
-        p1, lnprob1, rstate = sampler.run_mcmc(p1, 1000)
-        return None
+        sampler.run_mcmc(p0, 1000)
+        return sampler.chain, sampler.lnprobability
 
 def unit_tests():
     sixpos = SixPosition([0., 0., 0., 0., 0., 0.])
@@ -235,12 +243,26 @@ def unit_tests():
         print lb, dm, pm, rv
         print "unit_tests(): (l,b) failed (0, 90) test"
         return False
+    sixpos = SixPosition([-32., 45., 12., 115., 95., 160.])
+    lb, dm, pm, rv = sixpos.get_observables()
+    lb_ivar = np.diag([1e9, 1e9]) # deg^{-2}
+    dm_ivar = 1. / (0.15 ** 2) # mag^{-2}
+    pm_ivar = np.diag([0., 0.]) # mas^{-2} yr^2
+    rv_ivar = 1. # km^{-2} s^2
+    star = ObservedStar(lb, lb_ivar, dm, dm_ivar, pm, pm_ivar, rv, rv_ivar)
+    if np.any(sixpos.get_sixpos() != star.get_fiducial_sixpos().get_sixpos()):
+        print sixpos.get_sixpos(), star.get_fiducial_sixpos().get_sixpos()
+        print "unit tests(): failed fiducial to star and back test"
+        return False
     print "unit_tests(): all tests passed"
     return True
 
 def figure_01():
     """
     Make figure 1.
+
+    bugs:
+    - HACK: NOT YET WRITTEN
     """
     print "hello world"
     sixpos = SixPosition([-32., 45., 12., 115., 95., 160.])
@@ -250,7 +272,10 @@ def figure_01():
     pm_ivar = np.diag([0., 0.]) # mas^{-2} yr^2
     rv_ivar = 1. # km^{-2} s^2
     star = ObservedStar(lb, lb_ivar, dm, dm_ivar, pm, pm_ivar, rv, rv_ivar)
-    star.get_posterior_samples()
+    chain, lnprob = star.get_posterior_samples()
+    print chain.shape, lnprob.shape
+    print chain[:,-1,:], lnprob[:,-1]
+    ## make triangle plot!
     return None
 
 if __name__ == "__main__":
