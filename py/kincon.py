@@ -24,24 +24,31 @@ class SixPosition:
         self.pos = sixvector
         return None
 
+    def get_sixpos(self):
+        """
+        output:
+        - 6-element np array Galactocentric phase-space position (kpc, km s^{-1})
+        """
+        return self.pos
+
     def get_helio_pos(self):
         """
         output:
-        - heliocentric 6-vector phase-space position
+        - heliocentric 6-vector phase-space position (kpc, km s^{-1})
         """
         return self.pos - SixPosition.sun
 
     def get_helio_3pos(self):
         """
         output:
-        - heliocentric 3-vector spatial position
+        - heliocentric 3-vector spatial position (kpc)
         """
         return get_helio_pos()[:3]
 
     def get_helio_3vel(self):
         """
         output:
-        - heliocentric 3-vector velocity
+        - heliocentric 3-vector velocity (km s^{-1})
         """
         return get_helio_pos()[3:]
 
@@ -57,14 +64,14 @@ class SixPosition:
     def get_distance(self):
         """
         output:
-        - heliocentric distance
+        - heliocentric distance (kpc)
         """
         return np.sqrt(np.sum(self.get_helio_3pos() ** 2))
 
     def get_observables(self):
         """
         output:
-        - measurement inputs to `Star` object: `(lb, dm, pm, rv)`
+        - measurement inputs to `Star` object: `(lb, dm, pm, rv)` (units deg, mag, mas yr^{-1}, km s^{-1})
 
         bugs:
         - Doesn't compute `pm` because I SUCK.
@@ -100,6 +107,9 @@ class Star:
         - pm quantity should be the isotropic angular velocity components, not just l-dot, b-dot (ie, there is a cosine in there).
         - ONLY works for distance modulus measurements, DOESN'T work for parallax measurements (yet).
         """
+        self.prior_dmin = 0.02 # kpc
+        self.prior_dmax = 200. # kpc
+        self.prior_vvariance = 150. * 150. # km^2 s^{-2}
         self.lb = lb
         self.lb_ivar = lb_ivar
         self.dm = dm
@@ -109,6 +119,25 @@ class Star:
         self.rv = rv
         self.rv_ivar = rv_ivar
         return None
+
+    def ln_prior(self, sixpos):
+        """
+        inputs:
+        - `sixpos`: A `SixPosition` object.
+
+        output:
+        - log prior pdf evaluated at this sixposition
+
+        comments:
+        - totally made up and sucks!
+        """
+        foo = sixpos.get_sixpos()
+        d2 = np.sum(foo[:3] ** 2)
+        if (d2 < self.dmin ** 2) or (d2 > self.dmax ** 2):
+            return -np.inf
+        ln_pos_prior = 1. / d2
+        ln_vel_prior = -0.5 * np.sum(foo[3:] ** 2) / self.prior_vvariance
+        return ln_pos_prior + ln_vel_prior
 
     def ln_likelihood(self, sixpos):
         """
@@ -126,4 +155,19 @@ class Star:
         return -0.5 * (np.dot(np.dot(lb - self.lb, self.lb_ivar), lb - self.lb)
                        + self.dm_ivar * (dm - self.dm) ** 2
                        + np.dot(np.dot(pm - self.pm, self.pm_ivar), pm - self.pm)
-                       + self.rv_ivar * (rv - self.rv) ** 2
+                       + self.rv_ivar * (rv - self.rv) ** 2)
+
+    def ln_p(self, sixpos):
+        lnp = self.ln_prior(sixpos)
+        if np.isfinite(lnp):
+            return lnp + self.ln_likelihood(sixpos)
+        return -np.inf
+
+def figure_01():
+    """
+    Make figure 1.
+    """
+    print "hello world"
+
+if __name__ == "__main__":
+    figure_01()
