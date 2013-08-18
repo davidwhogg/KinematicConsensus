@@ -21,7 +21,8 @@ class SixPosition:
         output:
         - `SixPosition` object
         """
-        self.pos = sixvector
+        assert len(sixvector) == 6
+        self.pos = np.array(sixvector)
         return None
 
     def get_sixpos(self):
@@ -58,7 +59,7 @@ class SixPosition:
         - Galactic celestial coordinates (deg)
         """
         x = self.get_helio_3pos()
-        return np.array([np.rad2deg(np.arctan(x[1], x[0])),
+        return np.array([np.rad2deg(np.arctan2(x[1], x[0])),
                          np.rad2deg(np.arcsin(x[2] / (x[0] ** 2 + x[1] ** 2 + x[2] ** 2)))])
 
     def get_distance(self):
@@ -133,7 +134,7 @@ class ObservedStar:
         """
         foo = sixpos.get_sixpos()
         d2 = np.sum(foo[:3] ** 2)
-        if (d2 < self.dmin ** 2) or (d2 > self.dmax ** 2):
+        if (d2 < self.prior_dmin ** 2) or (d2 > self.prior_dmax ** 2):
             return -np.inf
         ln_pos_prior = 1. / d2
         ln_vel_prior = -0.5 * np.sum(foo[3:] ** 2) / self.prior_vvariance
@@ -163,6 +164,27 @@ class ObservedStar:
             return lnp + self.ln_likelihood(sixpos)
         return -np.inf
 
+def unit_tests():
+    sixpos = SixPosition([0., 0., 0., 0., 0., 0.])
+    lb, dm, pm, rv = sixpos.get_observables()
+    print lb, dm, pm, rv
+    foo = SixPosition.sun
+    foo[3:] = 0.
+    sixpos = SixPosition(foo + np.array([0.,  10., 0., 0., 0., 0.]))
+    lb, dm, pm, rv = sixpos.get_observables()
+    print lb, dm, pm, rv
+    sixpos = SixPosition(foo + np.array([0., -10., 0., 0., 0., 0.]))
+    lb, dm, pm, rv = sixpos.get_observables()
+    print lb, dm, pm, rv
+    sixpos = SixPosition(foo + np.array([0., 0.,  10., 0., 0., 0.]))
+    lb, dm, pm, rv = sixpos.get_observables()
+    print lb, dm, pm, rv
+    sixpos = SixPosition(foo + np.array([0., 0., -10., 0., 0., 0.]))
+    lb, dm, pm, rv = sixpos.get_observables()
+    print lb, dm, pm, rv
+    print "unit_tests(): all tests passed"
+    return True
+
 def figure_01():
     """
     Make figure 1.
@@ -179,4 +201,5 @@ def figure_01():
     return None
 
 if __name__ == "__main__":
+    unit_tests()
     figure_01()
