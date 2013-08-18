@@ -7,16 +7,10 @@ import numpy as np
 
 class SixPosition:
 
-    # the position of the Sun in 6-vector phase space
-    # units [kpc, kpc, kpc, km s^{-1}, km s^{-1}, km s^{-1}]
-    # needs to be checked!
-    # needs to be consistent with get_lb() function
-    sun = np.array([-8., 0., 0., 0., 225., 0.])
-
     def __init__(self, sixvector):
         """
         input:
-        - `sixvector`: 6-element np array Galactocentric phase-space position, same units as `SixPosition.sun`
+        - `sixvector`: 6-element np array Galactocentric phase-space position (kpc, km s^{-1})
 
         output:
         - `SixPosition` object
@@ -32,12 +26,19 @@ class SixPosition:
         """
         return self.pos
 
+    def get_sun_sixpos(self):
+        """
+        output:
+        - the position of the Sun in 6-vector phase space (kpc, kpc, kpc, km s^{-1}, km s^{-1}, km s^{-1})
+        """
+        return np.array([-8., 0., 0., 0., 225., 0.])
+
     def get_helio_pos(self):
         """
         output:
         - heliocentric 6-vector phase-space position (kpc, km s^{-1})
         """
-        return self.pos - SixPosition.sun
+        return self.get_sixpos() - self.get_sun_sixpos()
 
     def get_helio_3pos(self):
         """
@@ -59,8 +60,10 @@ class SixPosition:
         - Galactic celestial coordinates (deg)
         """
         x = self.get_helio_3pos()
-        return np.array([np.rad2deg(np.arctan2(x[1], x[0])),
-                         np.rad2deg(np.arcsin(x[2] / (x[0] ** 2 + x[1] ** 2 + x[2] ** 2)))])
+        l = np.rad2deg(np.arctan2(x[1], x[0]))
+        while l < 0.:
+            l += 360.
+        return np.array([l, np.rad2deg(np.arcsin(x[2] / np.sqrt(x[0] ** 2 + x[1] ** 2 + x[2] ** 2)))])
 
     def get_distance(self):
         """
@@ -121,6 +124,16 @@ class ObservedStar:
         self.rv_ivar = rv_ivar
         return None
 
+    def get_fiducial_sixpos(self):
+        """
+        output:
+        - SixPosition object corresponding to (lb, dm, pm, rv)
+
+        bugs:
+        - HACK: NOT YET WRITTEN
+        """
+        return None
+
     def ln_prior(self, sixpos):
         """
         inputs:
@@ -167,21 +180,37 @@ class ObservedStar:
 def unit_tests():
     sixpos = SixPosition([0., 0., 0., 0., 0., 0.])
     lb, dm, pm, rv = sixpos.get_observables()
-    print lb, dm, pm, rv
-    foo = SixPosition.sun
-    foo[3:] = 0.
+    if np.any(lb != [0., 0.]) or (rv != 0.):
+        print lb, dm, pm, rv
+        print "unit_tests(): (l,b) failed (0, 0) test"
+        return False
+    bar = sixpos.get_sun_sixpos()
+    foo = 1. * bar # copy
+    foo[3:] = [0., 0., 0.]
     sixpos = SixPosition(foo + np.array([0.,  10., 0., 0., 0., 0.]))
     lb, dm, pm, rv = sixpos.get_observables()
-    print lb, dm, pm, rv
+    if np.any(lb != [90., 0.]) or (rv != -bar[4]):
+        print lb, dm, pm, rv
+        print "unit_tests(): (l,b) failed (90, 0) test"
+        return False
     sixpos = SixPosition(foo + np.array([0., -10., 0., 0., 0., 0.]))
     lb, dm, pm, rv = sixpos.get_observables()
-    print lb, dm, pm, rv
+    if np.any(lb != [270., 0.]) or (rv != bar[4]):
+        print lb, dm, pm, rv
+        print "unit_tests(): (l,b) failed (270, 0) test"
+        return False
     sixpos = SixPosition(foo + np.array([0., 0.,  10., 0., 0., 0.]))
     lb, dm, pm, rv = sixpos.get_observables()
-    print lb, dm, pm, rv
+    if np.any(lb != [0., 90.]) or (rv != 0.):
+        print lb, dm, pm, rv
+        print "unit_tests(): (l,b) failed (0, 90) test"
+        return False
     sixpos = SixPosition(foo + np.array([0., 0., -10., 0., 0., 0.]))
     lb, dm, pm, rv = sixpos.get_observables()
-    print lb, dm, pm, rv
+    if np.any(lb != [0., -90.]) or (rv != 0.):
+        print lb, dm, pm, rv
+        print "unit_tests(): (l,b) failed (0, 90) test"
+        return False
     print "unit_tests(): all tests passed"
     return True
 
