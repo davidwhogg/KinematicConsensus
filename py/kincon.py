@@ -43,14 +43,14 @@ class SixPosition:
         output:
         - heliocentric 3-vector spatial position (kpc)
         """
-        return get_helio_pos()[:3]
+        return self.get_helio_pos()[:3]
 
     def get_helio_3vel(self):
         """
         output:
         - heliocentric 3-vector velocity (km s^{-1})
         """
-        return get_helio_pos()[3:]
+        return self.get_helio_pos()[3:]
 
     def get_lb(self):
         """
@@ -71,7 +71,7 @@ class SixPosition:
     def get_observables(self):
         """
         output:
-        - measurement inputs to `Star` object: `(lb, dm, pm, rv)` (units deg, mag, mas yr^{-1}, km s^{-1})
+        - measurement inputs to `ObservedStar` object: `(lb, dm, pm, rv)` (units deg, mag, mas yr^{-1}, km s^{-1})
 
         bugs:
         - Doesn't compute `pm` because I SUCK.
@@ -85,7 +85,7 @@ class SixPosition:
         pm = np.array([0., 0.]) # HACK
         return lb, dm, pm, rv
 
-class Star:
+class ObservedStar:
 
     def __init__(self, lb, lb_ivar, dm, dm_ivar, pm, pm_ivar, rv, rv_ivar):
         """
@@ -100,7 +100,7 @@ class Star:
         - `rv_ivar`: inverse variance for `rv` measurement (km^{-2} s^2)
 
         output:
-        - initialized `Star` object
+        - initialized `ObservedStar` object
 
         comments:
         - If a quantity (eg `pm`) is unmeasured, set corresponding inverse variance (eg `pm_ivar`) to zero.
@@ -157,7 +157,7 @@ class Star:
                        + np.dot(np.dot(pm - self.pm, self.pm_ivar), pm - self.pm)
                        + self.rv_ivar * (rv - self.rv) ** 2)
 
-    def ln_p(self, sixpos):
+    def ln_posterior(self, sixpos):
         lnp = self.ln_prior(sixpos)
         if np.isfinite(lnp):
             return lnp + self.ln_likelihood(sixpos)
@@ -168,6 +168,15 @@ def figure_01():
     Make figure 1.
     """
     print "hello world"
+    sixpos = SixPosition([-32., 45., 12., 115., 95., 160.])
+    lb, dm, pm, rv = sixpos.get_observables()
+    lb_ivar = np.diag([1e9, 1e9]) # deg^{-2}
+    dm_ivar = 1. / (0.15 ** 2) # mag^{-2}
+    pm_ivar = np.diag([0., 0.]) # mas^{-2} yr^2
+    rv_ivar = 1. # km^{-2} s^2
+    star = ObservedStar(lb, lb_ivar, dm, dm_ivar, pm, pm_ivar, rv, rv_ivar)
+    print star.ln_posterior(sixpos)
+    return None
 
 if __name__ == "__main__":
     figure_01()
