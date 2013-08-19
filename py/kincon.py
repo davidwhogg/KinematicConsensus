@@ -90,9 +90,9 @@ class SixPosition:
         """
         rhat = self.get_helio_3pos()
         rhat /= np.sqrt(np.sum(rhat ** 2))
-        if np.dot(rhat, self.zhat) < 1e-15:
-            return rhat, self.yhat, self.xhat
         lhat = np.cross(rhat, self.zhat)
+        if np.dot(lhat, lhat) < 1e-15:
+            return rhat, self.yhat, self.xhat
         lhat /= np.sqrt(np.sum(lhat ** 2))
         bhat = np.cross(lhat, rhat)
         return rhat, lhat, bhat
@@ -124,6 +124,9 @@ class SixPosition:
         """
         lb, dm, pm, rv = self.get_observables()
         return np.array([lb[0], lb[1], dm, pm[0], pm[1], rv])
+
+    def get_angular_momentum(self):
+        return np.cross(self.get_helio_3pos(), self.get_helio_3vel())
 
 class ObservedStar:
 
@@ -337,6 +340,14 @@ def triangle_plot_chain(chain, lnprob, prefix):
     fn = prefix + "b.png"
     print "triangle_plot_chain(): writing " + fn
     fig.savefig(fn)
+    intfoo = 1. * foo[:,3:] # copy
+    for i in range(nx * ny):
+        intfoo[i,:3] = SixPosition(foo[i,:6]).get_angular_momentum()
+    labels = [r"$L_x$", r"$L_y$", r"$L_z$", r"$\ln p$"]
+    fig = tri.corner(intfoo.transpose(), labels=labels)
+    fn = prefix + "c.png"
+    print "triangle_plot_chain(): writing " + fn
+    fig.savefig(fn)
     return None
 
 def figure_01():
@@ -347,11 +358,11 @@ def figure_01():
     - HACK: NOT YET WRITTEN
     """
     print "hello world"
-    sixpos = SixPosition([-32., 45., 12., 115., 95., 160.])
+    sixpos = SixPosition([-12., 5., 22., 115., 20., 160.])
     lb, dm, pm, rv = sixpos.get_observables()
-    lb_ivar = np.diag([1e9, 1e9]) # deg^{-2}
+    lb_ivar = np.diag([1e9 * np.cos(np.deg2rad(lb[1])) ** 2, 1e9]) # deg^{-2}
     dm_ivar = 1. / (0.30 ** 2) # mag^{-2}
-    pm_ivar = np.diag([128., 128.]) # mas^{-2} yr^2
+    pm_ivar = np.diag([64., 64.]) # mas^{-2} yr^2
     rv_ivar = 1. # km^{-2} s^2
     star = ObservedStar(lb, lb_ivar, dm, dm_ivar, pm, pm_ivar, rv, rv_ivar)
     chain, lnprob = star.get_posterior_samples(2048)
