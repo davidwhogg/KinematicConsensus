@@ -19,6 +19,9 @@ class SixPosition:
         """
         assert len(sixvector) == 6
         self.pos = np.array(sixvector)
+        self.xhat = np.array([1., 0., 0.])
+        self.yhat = np.array([0., 1., 0.])
+        self.zhat = np.array([0., 0., 1.])
         return None
 
     def get_sixpos(self):
@@ -83,10 +86,13 @@ class SixPosition:
 
         bugs:
         - Handedness of the system has not been tested; probably wrong!
+        - Handles pole issues stupidly.
         """
         rhat = self.get_helio_3pos()
         rhat /= np.sqrt(np.sum(rhat ** 2))
-        lhat = np.cross(rhat, np.array([0., 0., 1.]))
+        if np.dot(rhat, self.zhat) < 1e-15:
+            return rhat, self.yhat, self.xhat
+        lhat = np.cross(rhat, self.zhat)
         lhat /= np.sqrt(np.sum(lhat ** 2))
         bhat = np.cross(lhat, rhat)
         return rhat, lhat, bhat
