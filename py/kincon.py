@@ -246,6 +246,17 @@ class ObservedStar:
         return sampler.chain, sampler.lnprobability
 
 def unit_tests():
+    """
+    Run unit tests.
+
+    output:
+    - `True` or `False`, depending!
+
+    bugs:
+    - Needs left-handed vs right-handed coordinate system tests.
+    - Needs to show that `pm` coordinate system is consistent with `lb` system.
+    - Needs to test `pm` units by doing some fiducial 100 km / s at 100 kpc.
+    """
     sixpos = SixPosition([0., 0., 0., 0., 0., 0.])
     lb, dm, pm, rv = sixpos.get_observables()
     if np.any(lb != [0., 0.]) or (rv != 0.):
