@@ -67,12 +67,29 @@ class SixPosition:
             l += 360.
         return np.array([l, np.rad2deg(np.arcsin(x[2] / np.sqrt(x[0] ** 2 + x[1] ** 2 + x[2] ** 2)))])
 
-    def get_distance(self):
+    def get_helio_distance(self):
         """
         output:
         - heliocentric distance (kpc)
         """
         return np.sqrt(np.sum(self.get_helio_3pos() ** 2))
+
+    def get_helio_unit_vectors(self):
+        """
+        Compute and return unit vectors in spherical heliocentric coordinate system r, l, b.
+
+        outputs:
+        - `rhat`, `lhat`, `bhat`:
+
+        bugs:
+        - Handedness of the system has not been tested; probably wrong!
+        """
+        rhat = self.get_helio_3pos()
+        rhat /= np.sqrt(np.sum(rhat ** 2))
+        lhat = np.cross(rhat, np.array([0., 0., 1.]))
+        lhat /= np.sqrt(np.sum(lhat ** 2))
+        bhat = np.cross(lhat, rhat)
+        return rhat, lhat, bhat
 
     def get_observables(self):
         """
@@ -83,12 +100,12 @@ class SixPosition:
         - Doesn't compute `pm` because I SUCK.
         """
         lb = self.get_lb()
-        d = self.get_distance()
+        d = self.get_helio_distance()
         dm = 5. * np.log10(100. * d) # magic number 100 for kpc -> (10 pc)
-        dhat = self.get_helio_3pos() / d
+        rhat, lhat, bhat = self.get_helio_unit_vectors()
         v = self.get_helio_3vel()
-        rv = np.dot(v, dhat)
-        pm = np.array([0., 0.]) # HACK
+        rv = np.dot(v, rhat)
+        pm = np.array([np.dot(v, lhat), np.dot(v, bhat)]) / d # UNITS WRONG
         return lb, dm, pm, rv
 
 class ObservedStar:
@@ -134,17 +151,18 @@ class ObservedStar:
         bugs:
         - HACK: `pm` part of this NOT YET WRITTEN
         """
-        sixpos = np.zeros(6)
-        foo = SixPosition(sixpos)
-        x = foo.get_sun_sixpos()
-        d = 0.01 * 10. ** (0.2 * self.dm)
+        result = SixPosition(np.zeros(6))
+        x = result.get_sixpos()
+        x += result.get_sun_sixpos()
+        d = 0.01 * 10. ** (0.2 * self.dm) # note (10 pc) -> kpc conversion
         x[0] += d * np.cos(np.deg2rad(self.lb[0])) * np.cos(np.deg2rad(self.lb[1]))
         x[1] += d * np.sin(np.deg2rad(self.lb[0])) * np.cos(np.deg2rad(self.lb[1]))
         x[2] += d * np.sin(np.deg2rad(self.lb[1]))
-        dhat = x[:3] / d
-        x[3:] += self.rv * dhat
-        ### HACK: MISSING pm PART
-        return SixPosition(x)
+        rhat, lhat, bhat = result.get_helio_unit_vectors()
+        x[3:] += self.rv * rhat
+        x[3:] += self.pm[0] * d * lhat # UNITS WRONG
+        x[3:] += self.pm[1] * d * bhat # UNITS WRONG
+        return result
 
     def ln_prior(self, sixpos):
         """
@@ -245,13 +263,27 @@ def unit_tests():
         print "unit_tests(): (l,b) failed (0, 90) test"
         return False
     sixpos = SixPosition([-32., 45., 12., 115., 95., 160.])
+    rhat, lhat, bhat = sixpos.get_helio_unit_vectors()
+    tiny = 1e-15
+    if ((np.abs(np.dot(rhat, rhat) - 1.) > tiny) or
+        (np.abs(np.dot(lhat, lhat) - 1.) > tiny) or
+        (np.abs(np.dot(bhat, bhat) - 1.) > tiny)):
+        print np.dot(rhat, rhat) - 1., np.dot(lhat, lhat) - 1., np.dot(bhat, bhat) - 1.
+        print "unit tests(): failed unit-vector normalization test"
+        return False
+    if ((np.abs(np.dot(rhat, lhat)) > tiny) or
+        (np.abs(np.dot(rhat, bhat)) > tiny) or
+        (np.abs(np.dot(lhat, bhat)) > tiny)):
+        print rhat, lhat, bhat
+        print "unit tests(): failed unit-vector orthogonality test"
+        return False
     lb, dm, pm, rv = sixpos.get_observables()
     lb_ivar = np.diag([1e9, 1e9]) # deg^{-2}
     dm_ivar = 1. / (0.15 ** 2) # mag^{-2}
     pm_ivar = np.diag([0., 0.]) # mas^{-2} yr^2
     rv_ivar = 1. # km^{-2} s^2
     star = ObservedStar(lb, lb_ivar, dm, dm_ivar, pm, pm_ivar, rv, rv_ivar)
-    if np.any(sixpos.get_sixpos() != star.get_fiducial_sixpos().get_sixpos()):
+    if np.any(np.abs(sixpos.get_sixpos() - star.get_fiducial_sixpos().get_sixpos()) > 1000. * tiny):
         print sixpos.get_sixpos(), star.get_fiducial_sixpos().get_sixpos()
         print "unit tests(): failed fiducial to star and back test"
         return False
@@ -291,5 +323,5 @@ def figure_01():
     return None
 
 if __name__ == "__main__":
-    unit_tests()
+    assert unit_tests()
     figure_01()
