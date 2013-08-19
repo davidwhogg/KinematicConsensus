@@ -102,8 +102,12 @@ class SixPosition:
         output:
         - measurement inputs to `ObservedStar` object: `(lb, dm, pm, rv)` (units deg, mag, mas yr^{-1}, km s^{-1})
 
+        comments:
+        - https://www.google.com/search?q=(1+kpc)+%2F+(1+km+%2F+s)+%2F+206254.81+%2F+1000.
+        - 4.74080147 years
+
         bugs:
-        - Doesn't compute `pm` because I SUCK.
+        - UNITS SUCK -- Units for `pm` need checking.
         """
         lb = self.get_lb()
         d = self.get_helio_distance()
@@ -111,8 +115,15 @@ class SixPosition:
         rhat, lhat, bhat = self.get_helio_unit_vectors()
         v = self.get_helio_3vel()
         rv = np.dot(v, rhat)
-        pm = np.array([np.dot(v, lhat), np.dot(v, bhat)]) / d # UNITS WRONG
+        pm = np.array([np.dot(v, lhat), np.dot(v, bhat)]) / d / 4.7408 # UNITS WRONG
         return lb, dm, pm, rv
+
+    def get_observables_array(self):
+        """
+        Same as `get_observables()` but returned as a 6-array.
+        """
+        lb, dm, pm, rv = self.get_observables()
+        return np.array([lb[0], lb[1], dm, pm[0], pm[1], rv])
 
 class ObservedStar:
 
@@ -155,7 +166,7 @@ class ObservedStar:
         - SixPosition object corresponding to (lb, dm, pm, rv)
 
         bugs:
-        - HACK: `pm` part of this NOT YET WRITTEN
+        - Units for `pm` need checking.
         """
         result = SixPosition(np.zeros(6))
         x = result.get_sixpos()
@@ -166,8 +177,8 @@ class ObservedStar:
         x[2] += d * np.sin(np.deg2rad(self.lb[1]))
         rhat, lhat, bhat = result.get_helio_unit_vectors()
         x[3:] += self.rv * rhat
-        x[3:] += self.pm[0] * d * lhat # UNITS WRONG
-        x[3:] += self.pm[1] * d * bhat # UNITS WRONG
+        x[3:] += self.pm[0] * d * lhat * 4.7408
+        x[3:] += self.pm[1] * d * bhat * 4.7408
         return result
 
     def ln_prior(self, sixpos):
@@ -302,11 +313,21 @@ def triangle_plot_chain(chain, lnprob, prefix):
     """
     nx, ny, nq = chain.shape
     foo = np.concatenate((chain.reshape((nx * ny, nq)), lnprob.reshape((nx * ny, 1))), axis=1)
-    labels = [r"$x$", r"$y$", r"$z$", r"$v_x$", r"$v_y$", r"$v_z$", r"$\ln p$", r"hello"]
+    labels = [r"$x$", r"$y$", r"$z$", r"$v_x$", r"$v_y$", r"$v_z$", r"$\ln p$"]
     fig = tri.corner(foo.transpose(), labels=labels)
-    fig.savefig(prefix + "a.png")
+    fn = prefix + "a.png"
+    print "triangle_plot_chain(): writing " + fn
+    fig.savefig(fn)
+    obsfoo = 1. * foo # copy
+    for i in range(nx * ny):
+        obsfoo[i,:6] = SixPosition(foo[i,:6]).get_observables_array()
+    labels = [r"$l$", r"$b$", r"$DM$", r"$\dot{l}$", r"$\dot{b}$", r"$v_r$", r"$\ln p$"]
+    fig = tri.corner(obsfoo.transpose(), labels=labels)
+    fn = prefix + "b.png"
+    print "triangle_plot_chain(): writing " + fn
+    fig.savefig(fn)
     return None
-                   
+
 def figure_01():
     """
     Make figure 1.
@@ -319,12 +340,10 @@ def figure_01():
     lb, dm, pm, rv = sixpos.get_observables()
     lb_ivar = np.diag([1e9, 1e9]) # deg^{-2}
     dm_ivar = 1. / (0.30 ** 2) # mag^{-2}
-    pm_ivar = np.diag([0., 0.]) # mas^{-2} yr^2
+    pm_ivar = np.diag([128., 128.]) # mas^{-2} yr^2
     rv_ivar = 1. # km^{-2} s^2
     star = ObservedStar(lb, lb_ivar, dm, dm_ivar, pm, pm_ivar, rv, rv_ivar)
     chain, lnprob = star.get_posterior_samples(2048)
-    print chain.shape, lnprob.shape
-    print chain[:,-1,:], lnprob[:,-1]
     triangle_plot_chain(chain[:,-512::8,:], lnprob[:,-512::8], "figure_01")
     return None
 
