@@ -16,12 +16,17 @@ class SixPosition:
 
         output:
         - `SixPosition` object
+
+        bugs:
+        - `potential_amplitude` should not be part of this `class`.
+        - `potential_amplitude` is a magic number.
         """
         assert len(sixvector) == 6
         self.pos = np.array(sixvector)
         self.xhat = np.array([1., 0., 0.])
         self.yhat = np.array([0., 1., 0.])
         self.zhat = np.array([0., 0., 1.])
+        self.potential_amplitude = 200.**2 # km^2 s^{-2}
         return None
 
     def get_sixpos(self):
@@ -115,7 +120,7 @@ class SixPosition:
         rhat, lhat, bhat = self.get_helio_unit_vectors()
         v = self.get_helio_3vel()
         rv = np.dot(v, rhat)
-        pm = np.array([np.dot(v, lhat), np.dot(v, bhat)]) / d / 4.7408 # UNITS WRONG
+        pm = np.array([np.dot(v, lhat), np.dot(v, bhat)]) / d / 4.7408 # UNITS WRONG?
         return lb, dm, pm, rv
 
     def get_observables_array(self):
@@ -125,8 +130,20 @@ class SixPosition:
         lb, dm, pm, rv = self.get_observables()
         return np.array([lb[0], lb[1], dm, pm[0], pm[1], rv])
 
+    def get_potential_energy(self):
+        return self.potential_amplitude * np.log(np.sum(self.get_sixpos()[:3] ** 2) / 200.0) # MAGIC NUMBER 200 kpc
+
+    def get_kinetic_energy(self):
+        return 0.5 * np.sum(self.get_sixpos()[3:] ** 2)
+
+    def get_energy(self):
+        return self.get_potential_energy() + self.get_kinetic_energy()
+
     def get_angular_momentum(self):
         return np.cross(self.get_helio_3pos(), self.get_helio_3vel())
+
+    def get_integrals_of_motion(self):
+        return np.concatenate((self.get_energy(), self.get_angular_momentum()))
 
 class ObservedStar:
 
@@ -340,10 +357,10 @@ def triangle_plot_chain(chain, lnprob, prefix):
     fn = prefix + "b.png"
     print "triangle_plot_chain(): writing " + fn
     fig.savefig(fn)
-    intfoo = 1. * foo[:,3:] # copy
+    intfoo = 1. * foo[:,2:] # copy
     for i in range(nx * ny):
-        intfoo[i,:3] = SixPosition(foo[i,:6]).get_angular_momentum()
-    labels = [r"$L_x$", r"$L_y$", r"$L_z$", r"$\ln p$"]
+        intfoo[i,:3] = SixPosition(foo[i,:6]).get_integrals_of_motion()
+    labels = [r"E", r"$L_x$", r"$L_y$", r"$L_z$", r"$\ln p$"]
     fig = tri.corner(intfoo.transpose(), labels=labels)
     fn = prefix + "c.png"
     print "triangle_plot_chain(): writing " + fn
