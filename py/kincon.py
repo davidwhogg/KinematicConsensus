@@ -281,12 +281,7 @@ class ObservedStar:
         lnp = lambda sp: self.ln_prior(SixPosition(sp))
         sampler = emcee.EnsembleSampler(nwalkers, ndim, lnp)
         sampler.run_mcmc(p0, nsamples)
-        lbs = np.array([SixPosition(sp).get_observables()[0] for sp in sampler.flatchain])
-        good = np.abs(lbs[:,0]) < 30. # deg
-        good.reshape(sampler.lnprobability.shape)
-        print good.shape, sampler.chain[good].shape, sampler.lnprobability[good].shape
-        assert False
-        return sampler.chain[good], sampler.lnprobability[good]
+        return sampler.chain, sampler.lnprobability
 
 def unit_tests():
     """
@@ -365,15 +360,15 @@ def triangle_plot_chain(chain, lnprob, prefix):
     """
     Make a 7x7 triangle.
     """
-    nx, ny, nq = chain.shape
-    foo = np.concatenate((chain.reshape((nx * ny, nq)), lnprob.reshape((nx * ny, 1))), axis=1)
+    nx, nq = chain.shape
+    foo = np.concatenate((chain, lnprob.reshape((nx, 1))), axis=1)
     labels = [r"$x$", r"$y$", r"$z$", r"$v_x$", r"$v_y$", r"$v_z$", r"$\ln p$"]
     fig = tri.corner(foo.transpose(), labels=labels)
     fn = prefix + "a.png"
     print "triangle_plot_chain(): writing " + fn
     fig.savefig(fn)
     obsfoo = 1. * foo # copy
-    for i in range(nx * ny):
+    for i in range(nx):
         obsfoo[i,:6] = SixPosition(foo[i,:6]).get_observables_array()
     labels = [r"$l$", r"$b$", r"$DM$", r"$\dot{l}$", r"$\dot{b}$", r"$v_r$", r"$\ln p$"]
     fig = tri.corner(obsfoo.transpose(), labels=labels)
@@ -381,7 +376,7 @@ def triangle_plot_chain(chain, lnprob, prefix):
     print "triangle_plot_chain(): writing " + fn
     fig.savefig(fn)
     intfoo = 1. * foo[:,2:] # copy
-    for i in range(nx * ny):
+    for i in range(nx):
         intfoo[i,:4] = SixPosition(foo[i,:6]).get_integrals_of_motion()
     labels = [r"E", r"$L_x$", r"$L_y$", r"$L_z$", r"$\ln p$"]
     fig = tri.corner(intfoo.transpose(), labels=labels)
@@ -407,9 +402,19 @@ def figure_01():
     star = ObservedStar(lb, lb_ivar, dm, dm_ivar, pm, pm_ivar, rv, rv_ivar)
     N = 4096
     chain, lnprob = star.get_prior_samples(N)
-    triangle_plot_chain(chain[:,-N/4::4,:], lnprob[:,-N/4::4], "figure_01")
+    nx, ny, nd = chain.shape
+    chain = chain.reshape((nx * ny, nd))
+    lnprob = lnprob.reshape((nx * ny))
+    lbs = np.array([SixPosition(sp).get_observables()[0] for sp in chain])
+    good = np.abs(lbs[:,1]) < 30. # deg
+    chain = chain[good]
+    lnprob = lnprob[good]
+    triangle_plot_chain(chain, lnprob, "figure_01")
     chain, lnprob = star.get_posterior_samples(N)
-    triangle_plot_chain(chain[:,-N/4::4,:], lnprob[:,-N/4::4], "figure_02")
+    nx, ny, nd = chain.shape
+    chain = chain.reshape((nx * ny, nd))
+    lnprob = lnprob.reshape((nx * ny))
+    triangle_plot_chain(chain, lnprob, "figure_02")
     return None
 
 if __name__ == "__main__":
