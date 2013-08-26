@@ -131,7 +131,7 @@ class SixPosition:
         return np.array([lb[0], lb[1], dm, pm[0], pm[1], rv])
 
     def get_potential_energy(self):
-        return self.potential_amplitude * np.log(np.sum(self.get_sixpos()[:3] ** 2) / 200.0) # MAGIC NUMBER 200 kpc
+        return self.potential_amplitude * 0.5 * np.log(np.sum(self.get_sixpos()[:3] ** 2) / 200. ** 2) # MAGIC NUMBER 200 kpc
 
     def get_kinetic_energy(self):
         return 0.5 * np.sum(self.get_sixpos()[3:] ** 2)
@@ -143,7 +143,7 @@ class SixPosition:
         return np.cross(self.get_helio_3pos(), self.get_helio_3vel())
 
     def get_integrals_of_motion(self):
-        return np.concatenate((self.get_energy(), self.get_angular_momentum()))
+        return np.concatenate(([self.get_energy()], self.get_angular_momentum()))
 
 class ObservedStar:
 
@@ -359,7 +359,7 @@ def triangle_plot_chain(chain, lnprob, prefix):
     fig.savefig(fn)
     intfoo = 1. * foo[:,2:] # copy
     for i in range(nx * ny):
-        intfoo[i,:3] = SixPosition(foo[i,:6]).get_integrals_of_motion()
+        intfoo[i,:4] = SixPosition(foo[i,:6]).get_integrals_of_motion()
     labels = [r"E", r"$L_x$", r"$L_y$", r"$L_z$", r"$\ln p$"]
     fig = tri.corner(intfoo.transpose(), labels=labels)
     fn = prefix + "c.png"
@@ -379,11 +379,12 @@ def figure_01():
     lb, dm, pm, rv = sixpos.get_observables()
     lb_ivar = np.diag([1e9 * np.cos(np.deg2rad(lb[1])) ** 2, 1e9]) # deg^{-2}
     dm_ivar = 1. / (0.30 ** 2) # mag^{-2}
-    pm_ivar = np.diag([64., 64.]) # mas^{-2} yr^2
+    pm_ivar = np.diag([0., 0.]) # mas^{-2} yr^2
     rv_ivar = 1. # km^{-2} s^2
     star = ObservedStar(lb, lb_ivar, dm, dm_ivar, pm, pm_ivar, rv, rv_ivar)
-    chain, lnprob = star.get_posterior_samples(2048)
-    triangle_plot_chain(chain[:,-512::8,:], lnprob[:,-512::8], "figure_01")
+    N = 4096
+    chain, lnprob = star.get_posterior_samples(N)
+    triangle_plot_chain(chain[:,-N/4::4,:], lnprob[:,-N/4::4], "figure_01")
     return None
 
 if __name__ == "__main__":
