@@ -214,9 +214,12 @@ class ObservedStar:
         """
         foo = sixpos.get_sixpos()
         d2 = np.sum(foo[:3] ** 2)
-        if (d2 < self.prior_dmin ** 2) or (d2 > self.prior_dmax ** 2):
+        if (d2 > self.prior_dmax ** 2):
             return -np.inf
-        ln_pos_prior = 1. / d2
+        if (d2 < self.prior_dmin ** 2):
+            ln_pos_prior = 1. / self.prior_dmin ** 2
+        else:
+            ln_pos_prior = 1. / d2
         ln_vel_prior = -0.5 * np.sum(foo[3:] ** 2) / self.prior_vvariance
         return ln_pos_prior + ln_vel_prior
 
@@ -264,6 +267,26 @@ class ObservedStar:
         sampler = emcee.EnsembleSampler(nwalkers, ndim, self.ln_posterior)
         sampler.run_mcmc(p0, nsamples)
         return sampler.chain, sampler.lnprobability
+
+    def get_prior_samples(self, nsamples):
+        """
+        Run emcee to generate posterior samples of true position given measured position.
+
+        bugs:
+        - Lots of things hard-coded.
+        """
+        ndim, nwalkers = 6, 16
+        pf = self.get_fiducial_sixpos().get_sixpos()
+        p0 = [pf + 1e-6 * np.random.normal(ndim) for i in range(nwalkers)]
+        lnp = lambda sp: self.ln_prior(SixPosition(sp))
+        sampler = emcee.EnsembleSampler(nwalkers, ndim, lnp)
+        sampler.run_mcmc(p0, nsamples)
+        lbs = np.array([SixPosition(sp).get_observables()[0] for sp in sampler.flatchain])
+        good = np.abs(lbs[:,0]) < 30. # deg
+        good.reshape(sampler.lnprobability.shape)
+        print good.shape, sampler.chain[good].shape, sampler.lnprobability[good].shape
+        assert False
+        return sampler.chain[good], sampler.lnprobability[good]
 
 def unit_tests():
     """
@@ -383,8 +406,10 @@ def figure_01():
     rv_ivar = 1. # km^{-2} s^2
     star = ObservedStar(lb, lb_ivar, dm, dm_ivar, pm, pm_ivar, rv, rv_ivar)
     N = 4096
-    chain, lnprob = star.get_posterior_samples(N)
+    chain, lnprob = star.get_prior_samples(N)
     triangle_plot_chain(chain[:,-N/4::4,:], lnprob[:,-N/4::4], "figure_01")
+    chain, lnprob = star.get_posterior_samples(N)
+    triangle_plot_chain(chain[:,-N/4::4,:], lnprob[:,-N/4::4], "figure_02")
     return None
 
 if __name__ == "__main__":
