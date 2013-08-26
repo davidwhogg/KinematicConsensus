@@ -266,6 +266,9 @@ class ObservedStar:
         p0 = [pf + 1e-6 * np.random.normal(ndim) for i in range(nwalkers)]
         sampler = emcee.EnsembleSampler(nwalkers, ndim, self.ln_posterior)
         sampler.run_mcmc(p0, nsamples)
+        p1 = sampler.flatchain[np.random.randint(nwalkers * nsamples, size=(nwalkers)), :]
+        sampler = emcee.EnsembleSampler(nwalkers, ndim, self.ln_posterior)
+        sampler.run_mcmc(p1, nsamples)
         return sampler.chain, sampler.lnprobability
 
     def get_prior_samples(self, nsamples):
@@ -281,6 +284,9 @@ class ObservedStar:
         lnp = lambda sp: self.ln_prior(SixPosition(sp))
         sampler = emcee.EnsembleSampler(nwalkers, ndim, lnp)
         sampler.run_mcmc(p0, nsamples)
+        p1 = sampler.flatchain[np.random.randint(nwalkers * nsamples, size=(nwalkers)), :]
+        sampler = emcee.EnsembleSampler(nwalkers, ndim, lnp)
+        sampler.run_mcmc(p1, nsamples)
         return sampler.chain, sampler.lnprobability
 
 def unit_tests():
@@ -400,7 +406,7 @@ def figure_01():
     pm_ivar = np.diag([0., 0.]) # mas^{-2} yr^2
     rv_ivar = 1. # km^{-2} s^2
     star = ObservedStar(lb, lb_ivar, dm, dm_ivar, pm, pm_ivar, rv, rv_ivar)
-    N = 8192
+    N = 4096
     chain, lnprob = star.get_prior_samples(N)
     nx, ny, nd = chain.shape
     chain = chain.reshape((nx * ny, nd))
