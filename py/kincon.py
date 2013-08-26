@@ -400,21 +400,22 @@ def figure_01():
     pm_ivar = np.diag([0., 0.]) # mas^{-2} yr^2
     rv_ivar = 1. # km^{-2} s^2
     star = ObservedStar(lb, lb_ivar, dm, dm_ivar, pm, pm_ivar, rv, rv_ivar)
-    N = 4096
+    N = 8192
     chain, lnprob = star.get_prior_samples(N)
     nx, ny, nd = chain.shape
     chain = chain.reshape((nx * ny, nd))
     lnprob = lnprob.reshape((nx * ny))
     lbs = np.array([SixPosition(sp).get_observables()[0] for sp in chain])
-    good = np.abs(lbs[:,1]) < 30. # deg
-    chain = chain[good]
-    lnprob = lnprob[good]
-    triangle_plot_chain(chain, lnprob, "figure_01")
+    good = np.abs(lbs[:,1]) > 30. # deg
+    good[: nx * ny / 2] = False
+    indx = (np.arange(nx * ny))[good]
+    triangle_plot_chain(chain[indx, :], lnprob[indx], "figure_01")
+    N = 4096
     chain, lnprob = star.get_posterior_samples(N)
     nx, ny, nd = chain.shape
     chain = chain.reshape((nx * ny, nd))
     lnprob = lnprob.reshape((nx * ny))
-    triangle_plot_chain(chain, lnprob, "figure_02")
+    triangle_plot_chain(chain[nx * ny / 2 :, :], lnprob[nx * ny / 2 :], "figure_02")
     return None
 
 if __name__ == "__main__":
