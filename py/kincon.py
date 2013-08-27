@@ -254,13 +254,11 @@ class ObservedStar:
         - totally made up and sucks!
         """
         foo = sixpos.get_sixpos()
-        d2 = np.sum(foo[:3] ** 2)
-        if (d2 > self.prior_dmax ** 2):
-            return -np.inf
-        if (d2 < self.prior_dmin ** 2):
-            ln_pos_prior = 1. / self.prior_dmin ** 2
+        d = np.sqrt(np.sum(foo[:3] ** 2))
+        if (d < self.prior_dbreak):
+            ln_pos_prior = self.prior_dbreak / d # 1 / distance on the inside
         else:
-            ln_pos_prior = 1. / d2
+            ln_pos_prior = (self.prior_dbreak / d) ** 3 # 1 / distance^3 on the outside
         ln_vel_prior = -0.5 * np.sum(foo[3:] ** 2) / self.prior_vvariance
         return ln_pos_prior + ln_vel_prior
 
