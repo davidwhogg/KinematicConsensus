@@ -208,8 +208,7 @@ class ObservedStar:
         - pm quantity should be the isotropic angular velocity components, not just l-dot, b-dot (ie, there is a cosine in there).
         - ONLY works for distance modulus measurements, DOESN'T work for parallax measurements (yet).
         """
-        self.prior_dmin = 0.02 # kpc
-        self.prior_dmax = 200. # kpc
+        self.prior_dbreak = 10. # kpc
         self.prior_vvariance = 150. * 150. # km^2 s^{-2}
         self.lb = lb
         self.lb_ivar = lb_ivar
