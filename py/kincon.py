@@ -165,6 +165,13 @@ class SixPosition:
     def get_integrals_of_motion_names(self):
         return np.array([r"E", r"$|L|$", r"$l^{(0)}$", r"$b^{(0)}$"])
 
+    def get_integrals_of_motion_extents(self):
+        """
+        bugs:
+        - Way hard-coded.
+        """
+        return [(-80000., 80000.), (0, 80000.), (0., 360.), (-90., 90.)]
+
 class ObservedStar:
 
     def __init__(self, lb, lb_ivar, dm, dm_ivar, pm, pm_ivar, rv, rv_ivar):
@@ -261,53 +268,50 @@ class ObservedStar:
                        + np.dot(np.dot(pm - self.pm, self.pm_ivar), pm - self.pm)
                        + self.rv_ivar * (rv - self.rv) ** 2)
 
-    def ln_posterior(self, sp):
+    def ln_posterior(self, sixpos):
         """
         The usual, now with `inf` catches.
 
         comments:
         - input is a `ndarray` not a `SixPosition` because of `emcee` requirements.
         """
-        sixpos = SixPosition(sp)
         lnp = self.ln_prior(sixpos)
         if np.isfinite(lnp):
             return lnp + self.ln_likelihood(sixpos)
         return -np.inf
 
-    def get_posterior_samples(self, nsamples):
+    def _get_samples(self, lnp):
         """
-        Run emcee to generate posterior samples of true position given measured position.
+        Run emcee to generate samples.
 
         bugs:
         - Lots of things hard-coded.
         """
-        ndim, nwalkers = 6, 16
+        ndim, nw, ns, nburn, nwburn, nsburn = 6, 32, 1024, 4, 16, 512
         pf = self.get_fiducial_sixpos().get_sixpos()
-        p0 = [pf + 1e-6 * np.random.normal(ndim) for i in range(nwalkers)]
-        sampler = emcee.EnsembleSampler(nwalkers, ndim, self.ln_posterior)
-        sampler.run_mcmc(p0, nsamples)
-        p1 = sampler.flatchain[np.random.randint(nwalkers * nsamples, size=(nwalkers)), :]
-        sampler = emcee.EnsembleSampler(nwalkers, ndim, self.ln_posterior)
-        sampler.run_mcmc(p1, nsamples)
+        p0 = [pf + 1e-6 * np.random.normal(ndim) for i in range(nwburn)]
+        for b in range(nburn):
+            sampler = emcee.EnsembleSampler(nwburn, ndim, lnp)
+            sampler.run_mcmc(p0, nsburn)
+            p0 = sampler.flatchain[np.random.randint(nwburn * nsburn, size=(nwburn)), :]
+        p1 = sampler.flatchain[np.random.randint(nwburn * nsburn, size=(nw)), :]
+        sampler = emcee.EnsembleSampler(nw, ndim, lnp)
+        sampler.run_mcmc(p1, ns)
         return sampler.chain, sampler.lnprobability
 
-    def get_prior_samples(self, nsamples):
+    def get_posterior_samples(self):
         """
         Run emcee to generate posterior samples of true position given measured position.
-
-        bugs:
-        - Lots of things hard-coded.
         """
-        ndim, nwalkers = 6, 16
-        pf = self.get_fiducial_sixpos().get_sixpos()
-        p0 = [pf + 1e-6 * np.random.normal(ndim) for i in range(nwalkers)]
+        lnp = lambda sp: self.ln_posterior(SixPosition(sp))
+        return self._get_samples(lnp)
+
+    def get_prior_samples(self):
+        """
+        Run emcee to generate posterior samples of true position given measured position.
+        """
         lnp = lambda sp: self.ln_prior(SixPosition(sp))
-        sampler = emcee.EnsembleSampler(nwalkers, ndim, lnp)
-        sampler.run_mcmc(p0, nsamples)
-        p1 = sampler.flatchain[np.random.randint(nwalkers * nsamples, size=(nwalkers)), :]
-        sampler = emcee.EnsembleSampler(nwalkers, ndim, lnp)
-        sampler.run_mcmc(p1, nsamples)
-        return sampler.chain, sampler.lnprobability
+        return self._get_samples(lnp)
 
 def unit_tests():
     """
@@ -387,10 +391,11 @@ def triangle_plot_chain(chain, lnprob, prefix):
     Make a 7x7 triangle.
     """
     nx, nq = chain.shape
+    maxlnp = np.max(lnprob)
     bar = SixPosition(chain[0]) # temporary variable to get names
     foo = np.concatenate((chain, lnprob.reshape((nx, 1))), axis=1)
     labels = np.append(bar.get_sixpos_names(), [r"$\ln p$"])
-    fig = tri.corner(foo.transpose(), labels=labels)
+    fig = tri.corner(foo.transpose(), labels=labels, plot_contours=False)
     fn = prefix + "a.png"
     print "triangle_plot_chain(): writing " + fn
     fig.savefig(fn)
@@ -398,7 +403,7 @@ def triangle_plot_chain(chain, lnprob, prefix):
     for i in range(nx):
         obsfoo[i,:6] = SixPosition(foo[i,:6]).get_observables_array()
     labels = np.append(bar.get_observables_names(), [r"$\ln p$"])
-    fig = tri.corner(obsfoo.transpose(), labels=labels)
+    fig = tri.corner(obsfoo.transpose(), labels=labels, plot_contours=False)
     fn = prefix + "b.png"
     print "triangle_plot_chain(): writing " + fn
     fig.savefig(fn)
@@ -406,7 +411,9 @@ def triangle_plot_chain(chain, lnprob, prefix):
     for i in range(nx):
         intfoo[i,:4] = SixPosition(foo[i,:6]).get_integrals_of_motion()
     labels = np.append(bar.get_integrals_of_motion_names(), [r"$\ln p$"])
-    fig = tri.corner(intfoo.transpose(), labels=labels)
+    extents = bar.get_integrals_of_motion_extents() + [(maxlnp-9.5, maxlnp+0.5)]
+    print extents
+    fig = tri.corner(intfoo.transpose(), labels=labels, extents=extents, plot_contours=False)
     fn = prefix + "c.png"
     print "triangle_plot_chain(): writing " + fn
     fig.savefig(fn)
@@ -427,8 +434,7 @@ def figure_01():
     pm_ivar = np.diag([0., 0.]) # mas^{-2} yr^2
     rv_ivar = 1. # km^{-2} s^2
     star = ObservedStar(lb, lb_ivar, dm, dm_ivar, pm, pm_ivar, rv, rv_ivar)
-    N = 4096
-    chain, lnprob = star.get_prior_samples(N)
+    chain, lnprob = star.get_prior_samples()
     nx, ny, nd = chain.shape
     chain = chain.reshape((nx * ny, nd))
     lnprob = lnprob.reshape((nx * ny))
@@ -438,7 +444,7 @@ def figure_01():
     indx = (np.arange(nx * ny))[good]
     triangle_plot_chain(chain[indx, :], lnprob[indx], "figure_01")
     N = 4096
-    chain, lnprob = star.get_posterior_samples(N)
+    chain, lnprob = star.get_posterior_samples()
     nx, ny, nd = chain.shape
     chain = chain.reshape((nx * ny, nd))
     lnprob = lnprob.reshape((nx * ny))
