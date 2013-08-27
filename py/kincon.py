@@ -26,7 +26,7 @@ class SixPosition:
         self.xhat = np.array([1., 0., 0.])
         self.yhat = np.array([0., 1., 0.])
         self.zhat = np.array([0., 0., 1.])
-        self.potential_amplitude = 200.**2 # km^2 s^{-2}
+        self.potential_amplitude = 173.**2 # km^2 s^{-2}
         self.potential_scale = 200. # kpc
         return None
 
@@ -153,19 +153,67 @@ class SixPosition:
         return [(0., 360.), (-90., 90.), (12.5, 20.5), (-2., 2.), (-2., 2.), (-500., 500.)]
 
     def get_potential_energy(self):
+        """
+        bugs:
+        - Hard-coded to this potential.
+        """
         return self.potential_amplitude * 0.5 * np.log(np.sum(self.get_sixpos()[:3] ** 2) / self.potential_scale ** 2)
 
     def get_kinetic_energy(self):
+        """
+        Duh.
+        """
         return 0.5 * np.sum(self.get_sixpos()[3:] ** 2)
 
     def get_energy(self):
+        """
+        Duh.
+        """
         return self.get_potential_energy() + self.get_kinetic_energy()
 
     def get_semimajor_axis(self):
+        """
+        Return the radius at which a star with this *energy* would be on a circular orbit.
+
+        bugs:
+        - Hard-coded to this potential.
+        """
         return self.potential_scale * np.exp(self.get_energy() / self.potential_amplitude - 0.5)
 
     def get_angular_momentum(self):
+        """
+        Return the current value of the Galactocentric angular momentum (kpc km s^{-1}).
+        """
         return np.cross(self.get_helio_3pos(), self.get_helio_3vel())
+
+    def _root_find(self, Q, x1, x2):
+        """
+        Very brittle root finder.
+        """
+        tol = 0.001
+        Q1 = Q(x1)
+        while x2 - x1 > tol:
+            x3 = 0.5 * (x1 + x2)
+            if Q(x3) / Q1 > 0.:
+                x1 = x3
+            else:
+                x2 = x3
+        return x3
+
+    def get_eccentricity(self):
+        """
+        Return the generalized eccentricity.
+
+        bugs:
+        - Hard-coded to this potential (and doesn't need to be).
+        - Uses root finding!
+        """
+        lna = np.log(self.get_semimajor_axis())
+        L = np.sqrt(np.sum(self.get_angular_momentum() ** 2))
+        Q = lambda lnr: lnr + 0.5 * L ** 2 / (self.potential_amplitude * np.exp(2. * lnr)) - lna - 0.5
+        rperi = self._root_find(Q, lna - 64., lna)
+        rap = self._root_find(Q, lna, lna + 64)
+        return (rap - rperi) / (rap + rperi)
 
     def get_angular_momentum_angles(self):
         L = self.get_angular_momentum()
@@ -175,20 +223,20 @@ class SixPosition:
         while lpole < 0.:
             lpole += 360.
         bpole = np.rad2deg(np.arcsin(Lhat[2]))
-        return np.array([absL, lpole, bpole])
+        return np.array([lpole, bpole])
 
     def get_integrals_of_motion(self):
-        return np.concatenate(([self.get_semimajor_axis()], self.get_angular_momentum_angles()))
+        return np.concatenate((np.array([self.get_semimajor_axis(), self.get_eccentricity()]), self.get_angular_momentum_angles()))
 
     def get_integrals_of_motion_names(self):
-        return np.array([r"$a$", r"$|L|$", r"$l^{(0)}$", r"$b^{(0)}$"])
+        return np.array([r"$a$", r"$e$", r"$l^{(0)}$", r"$b^{(0)}$"])
 
     def get_integrals_of_motion_extents(self):
         """
         bugs:
         - Way hard-coded.
         """
-        return [(0., 150.), (0, 80000.), (0., 360.), (-90., 90.)]
+        return [(0., 150.), (0., 1.), (0., 360.), (-90., 90.)]
 
 class ObservedStar:
 
@@ -213,7 +261,7 @@ class ObservedStar:
         - ONLY works for distance modulus measurements, DOESN'T work for parallax measurements (yet).
         """
         self.prior_dbreak = 10. # kpc
-        self.prior_vvariance = 150. * 150. # km^2 s^{-2}
+        self.prior_vvariance = 100. * 100. # km^2 s^{-2}
         self.lb = lb
         self.lb_ivar = lb_ivar
         self.dm = dm
@@ -295,14 +343,14 @@ class ObservedStar:
             return lnp + self.ln_likelihood(sixpos)
         return -np.inf
 
-    def _get_samples(self, lnp):
+    def _get_samples(self, lnp, f=1):
         """
         Run emcee to generate samples.
 
         bugs:
         - Lots of things hard-coded.
         """
-        ndim, nw, ns, nburn, nwburn, nsburn = 6, 32, 1024, 4, 16, 512
+        ndim, nw, ns, nburn, nwburn, nsburn = 6, 32, f * 1024, 4, 16, f * 512
         pf = self.get_fiducial_sixpos().get_sixpos()
         p0 = [pf + 1e-6 * np.random.normal(ndim) for i in range(nwburn)]
         for b in range(nburn):
@@ -326,7 +374,7 @@ class ObservedStar:
         Run emcee to generate posterior samples of true position given measured position.
         """
         lnp = lambda sp: self.ln_prior(SixPosition(sp))
-        return self._get_samples(lnp)
+        return self._get_samples(lnp, f=16)
 
 def unit_tests():
     """
