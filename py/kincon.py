@@ -36,6 +36,9 @@ class SixPosition:
         """
         return self.pos
 
+    def get_sixpos_names(self):
+        return np.array([r"$x$", r"$y$", r"$z$", r"$v_x$", r"$v_y$", r"$v_z$"])
+
     def get_sun_sixpos(self):
         """
         output:
@@ -73,7 +76,8 @@ class SixPosition:
         l = np.rad2deg(np.arctan2(x[1], x[0]))
         while l < 0.:
             l += 360.
-        return np.array([l, np.rad2deg(np.arcsin(x[2] / np.sqrt(x[0] ** 2 + x[1] ** 2 + x[2] ** 2)))])
+        b = np.rad2deg(np.arcsin(x[2] / np.sqrt(x[0] ** 2 + x[1] ** 2 + x[2] ** 2)))
+        return np.array([l, b])
 
     def get_helio_distance(self):
         """
@@ -130,6 +134,9 @@ class SixPosition:
         lb, dm, pm, rv = self.get_observables()
         return np.array([lb[0], lb[1], dm, pm[0], pm[1], rv])
 
+    def get_observables_names(self):
+        return np.array([r"$l$", r"$b$", r"$DM$", r"$\dot{l}$", r"$\dot{b}$", r"$v_r$"])
+
     def get_potential_energy(self):
         return self.potential_amplitude * 0.5 * np.log(np.sum(self.get_sixpos()[:3] ** 2) / 200. ** 2) # MAGIC NUMBER 200 kpc
 
@@ -142,8 +149,21 @@ class SixPosition:
     def get_angular_momentum(self):
         return np.cross(self.get_helio_3pos(), self.get_helio_3vel())
 
+    def get_angular_momentum_angles(self):
+        L = self.get_angular_momentum()
+        absL = np.sqrt(np.sum(L ** 2))
+        Lhat = L / absL
+        l = np.rad2deg(np.arctan2(L[1], L[0]))
+        while l < 0.:
+            l += 360.
+        b = np.rad2deg(np.arcsin(Lhat[2]))
+        return np.array([absL, l, b])
+
     def get_integrals_of_motion(self):
-        return np.concatenate(([self.get_energy()], self.get_angular_momentum()))
+        return np.concatenate(([self.get_energy()], self.get_angular_momentum_angles()))
+
+    def get_integrals_of_motion_names(self):
+        return np.array([r"E", r"$|L|$", r"$l^{(0)}$", r"$b^{(0)}$"])
 
 class ObservedStar:
 
@@ -367,8 +387,9 @@ def triangle_plot_chain(chain, lnprob, prefix):
     Make a 7x7 triangle.
     """
     nx, nq = chain.shape
+    bar = SixPosition(chain[0]) # temporary variable to get names
     foo = np.concatenate((chain, lnprob.reshape((nx, 1))), axis=1)
-    labels = [r"$x$", r"$y$", r"$z$", r"$v_x$", r"$v_y$", r"$v_z$", r"$\ln p$"]
+    labels = np.append(bar.get_sixpos_names(), [r"$\ln p$"])
     fig = tri.corner(foo.transpose(), labels=labels)
     fn = prefix + "a.png"
     print "triangle_plot_chain(): writing " + fn
@@ -376,7 +397,7 @@ def triangle_plot_chain(chain, lnprob, prefix):
     obsfoo = 1. * foo # copy
     for i in range(nx):
         obsfoo[i,:6] = SixPosition(foo[i,:6]).get_observables_array()
-    labels = [r"$l$", r"$b$", r"$DM$", r"$\dot{l}$", r"$\dot{b}$", r"$v_r$", r"$\ln p$"]
+    labels = np.append(bar.get_observables_names(), [r"$\ln p$"])
     fig = tri.corner(obsfoo.transpose(), labels=labels)
     fn = prefix + "b.png"
     print "triangle_plot_chain(): writing " + fn
@@ -384,7 +405,7 @@ def triangle_plot_chain(chain, lnprob, prefix):
     intfoo = 1. * foo[:,2:] # copy
     for i in range(nx):
         intfoo[i,:4] = SixPosition(foo[i,:6]).get_integrals_of_motion()
-    labels = [r"E", r"$L_x$", r"$L_y$", r"$L_z$", r"$\ln p$"]
+    labels = np.append(bar.get_integrals_of_motion_names(), [r"$\ln p$"])
     fig = tri.corner(intfoo.transpose(), labels=labels)
     fn = prefix + "c.png"
     print "triangle_plot_chain(): writing " + fn
