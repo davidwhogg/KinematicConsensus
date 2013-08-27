@@ -27,7 +27,7 @@ class SixPosition:
         self.yhat = np.array([0., 1., 0.])
         self.zhat = np.array([0., 0., 1.])
         self.potential_amplitude = 173.**2 # km^2 s^{-2}
-        self.potential_scale = 200. # kpc
+        self.potential_scale = 100. # kpc
         return None
 
     def get_sixpos(self):
@@ -260,7 +260,7 @@ class ObservedStar:
         - pm quantity should be the isotropic angular velocity components, not just l-dot, b-dot (ie, there is a cosine in there).
         - ONLY works for distance modulus measurements, DOESN'T work for parallax measurements (yet).
         """
-        self.prior_dbreak = 10. # kpc
+        self.prior_dbreak = 5. # kpc
         self.prior_vvariance = 100. * 100. # km^2 s^{-2}
         self.lb = lb
         self.lb_ivar = lb_ivar
