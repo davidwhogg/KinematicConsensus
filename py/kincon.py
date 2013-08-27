@@ -260,7 +260,7 @@ class ObservedStar:
         - pm quantity should be the isotropic angular velocity components, not just l-dot, b-dot (ie, there is a cosine in there).
         - ONLY works for distance modulus measurements, DOESN'T work for parallax measurements (yet).
         """
-        self.prior_dbreak = 5. # kpc
+        self.prior_dbreak = 10. # kpc
         self.prior_vvariance = 100. * 100. # km^2 s^{-2}
         self.lb = lb
         self.lb_ivar = lb_ivar
@@ -508,7 +508,7 @@ def figure_01():
     chain = chain.reshape((nx * ny, nd))
     lnprob = lnprob.reshape((nx * ny))
     prior_obs = np.array([SixPosition(sp).get_observables_array() for sp in chain])
-    good = np.logical_and(np.abs(prior_obs[:,1]) > 30., prior_obs[:,2] < 20.4) # deg
+    good = np.logical_and(np.abs(prior_obs[:,1]) > 30., prior_obs[:,2] < 20.4) # deg, mag
     good[: nx * ny / 2] = False
     indx = (np.arange(nx * ny))[good]
     triangle_plot_chain(chain[indx, :], lnprob[indx], "figure_01")
