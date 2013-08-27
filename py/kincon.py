@@ -255,9 +255,9 @@ class ObservedStar:
         foo = sixpos.get_sixpos()
         d = np.sqrt(np.sum(foo[:3] ** 2))
         if (d < self.prior_dbreak):
-            ln_pos_prior = self.prior_dbreak / d # 1 / distance on the inside
+            ln_pos_prior = 0. # constant on the inside
         else:
-            ln_pos_prior = (self.prior_dbreak / d) ** 3 # 1 / distance^3 on the outside
+            ln_pos_prior = 3. * np.log(self.prior_dbreak / d) # 1 / distance^3 on the outside
         ln_vel_prior = -0.5 * np.sum(foo[3:] ** 2) / self.prior_vvariance
         return ln_pos_prior + ln_vel_prior
 
@@ -402,6 +402,7 @@ def triangle_plot_chain(chain, lnprob, prefix):
     Make a 7x7 triangle.
     """
     nx, nq = chain.shape
+    print chain.shape, lnprob.shape
     maxlnp = np.max(lnprob)
     bar = SixPosition(chain[0]) # temporary variable to get names
     foo = np.concatenate((chain, lnprob.reshape((nx, 1))), axis=1)
