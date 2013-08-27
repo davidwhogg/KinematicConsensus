@@ -27,6 +27,7 @@ class SixPosition:
         self.yhat = np.array([0., 1., 0.])
         self.zhat = np.array([0., 0., 1.])
         self.potential_amplitude = 200.**2 # km^2 s^{-2}
+        self.potential_scale = 200. # kpc
         return None
 
     def get_sixpos(self):
@@ -44,7 +45,7 @@ class SixPosition:
         bugs:
         - Way hard-coded.
         """
-        return [(-200., 200.), (-200., 200.), (-200., 200.), (-500., 500.), (-500., 500.), (-500., 500.)]
+        return [(-120., 120.), (-120., 120.), (-120., 120.), (-500., 500.), (-500., 500.), (-500., 500.)]
 
     def get_sun_sixpos(self):
         """
@@ -149,16 +150,19 @@ class SixPosition:
         bugs:
         - Way hard-coded.
         """
-        return [(0., 360.), (-90., 90.), (14.5, 26.5), (-2., 2.), (-2., 2.), (-500., 500.)]
+        return [(0., 360.), (-90., 90.), (12.5, 20.5), (-2., 2.), (-2., 2.), (-500., 500.)]
 
     def get_potential_energy(self):
-        return self.potential_amplitude * 0.5 * np.log(np.sum(self.get_sixpos()[:3] ** 2) / 200. ** 2) # MAGIC NUMBER 200 kpc
+        return self.potential_amplitude * 0.5 * np.log(np.sum(self.get_sixpos()[:3] ** 2) / self.potential_scale ** 2)
 
     def get_kinetic_energy(self):
         return 0.5 * np.sum(self.get_sixpos()[3:] ** 2)
 
     def get_energy(self):
         return self.get_potential_energy() + self.get_kinetic_energy()
+
+    def get_semimajor_axis(self):
+        return self.potential_scale * np.exp(self.get_energy() / self.potential_amplitude - 0.5)
 
     def get_angular_momentum(self):
         return np.cross(self.get_helio_3pos(), self.get_helio_3vel())
@@ -167,24 +171,24 @@ class SixPosition:
         L = self.get_angular_momentum()
         absL = np.sqrt(np.sum(L ** 2))
         Lhat = L / absL
-        l = np.rad2deg(np.arctan2(L[1], L[0]))
-        while l < 0.:
-            l += 360.
-        b = np.rad2deg(np.arcsin(Lhat[2]))
-        return np.array([absL, l, b])
+        lpole = np.rad2deg(np.arctan2(L[1], L[0]))
+        while lpole < 0.:
+            lpole += 360.
+        bpole = np.rad2deg(np.arcsin(Lhat[2]))
+        return np.array([absL, lpole, bpole])
 
     def get_integrals_of_motion(self):
-        return np.concatenate(([self.get_energy()], self.get_angular_momentum_angles()))
+        return np.concatenate(([self.get_semimajor_axis()], self.get_angular_momentum_angles()))
 
     def get_integrals_of_motion_names(self):
-        return np.array([r"E", r"$|L|$", r"$l^{(0)}$", r"$b^{(0)}$"])
+        return np.array([r"$a$", r"$|L|$", r"$l^{(0)}$", r"$b^{(0)}$"])
 
     def get_integrals_of_motion_extents(self):
         """
         bugs:
         - Way hard-coded.
         """
-        return [(-80000., 80000.), (0, 80000.), (0., 360.), (-90., 90.)]
+        return [(0., 150.), (0, 80000.), (0., 360.), (-90., 90.)]
 
 class ObservedStar:
 
@@ -434,7 +438,11 @@ def triangle_plot_chain(chain, lnprob, prefix):
 
 def figure_01():
     """
-    Make figure 1.
+    Make figure 1. and maybe 2.
+
+    comments:
+    - Cut out stars from prior that are at |b| < 30 deg.
+    - Cut out stars from prior that have heliocentric distances > 120 kpc.
 
     bugs:
     - HACK: NOT YET WRITTEN
@@ -451,8 +459,8 @@ def figure_01():
     nx, ny, nd = chain.shape
     chain = chain.reshape((nx * ny, nd))
     lnprob = lnprob.reshape((nx * ny))
-    lbs = np.array([SixPosition(sp).get_observables()[0] for sp in chain])
-    good = np.abs(lbs[:,1]) > 30. # deg
+    prior_obs = np.array([SixPosition(sp).get_observables_array() for sp in chain])
+    good = np.logical_and(np.abs(prior_obs[:,1]) > 30., prior_obs[:,2] < 20.4) # deg
     good[: nx * ny / 2] = False
     indx = (np.arange(nx * ny))[good]
     triangle_plot_chain(chain[indx, :], lnprob[indx], "figure_01")
