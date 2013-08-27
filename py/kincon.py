@@ -411,7 +411,7 @@ def triangle_plot_chain(chain, lnprob, prefix):
     labels = np.append(bar.get_sixpos_names(), [r"$\ln p$"])
     extents = bar.get_sixpos_extents() + [(maxlnp-9.5, maxlnp+0.5)]
     print extents
-    fig = tri.corner(foo.transpose(), labels=labels, extents=extents, plot_contours=False)
+    fig = tri.corner(foo, labels=labels, extents=extents, plot_contours=False)
     fn = prefix + "a.png"
     print "triangle_plot_chain(): writing " + fn
     fig.savefig(fn)
@@ -421,7 +421,7 @@ def triangle_plot_chain(chain, lnprob, prefix):
     labels = np.append(bar.get_observables_names(), [r"$\ln p$"])
     extents = bar.get_observables_extents() + [(maxlnp-9.5, maxlnp+0.5)]
     print extents
-    fig = tri.corner(obsfoo.transpose(), labels=labels, extents=extents, plot_contours=False)
+    fig = tri.corner(obsfoo, labels=labels, extents=extents, plot_contours=False)
     fn = prefix + "b.png"
     print "triangle_plot_chain(): writing " + fn
     fig.savefig(fn)
@@ -431,7 +431,7 @@ def triangle_plot_chain(chain, lnprob, prefix):
     labels = np.append(bar.get_integrals_of_motion_names(), [r"$\ln p$"])
     extents = bar.get_integrals_of_motion_extents() + [(maxlnp-9.5, maxlnp+0.5)]
     print extents
-    fig = tri.corner(intfoo.transpose(), labels=labels, extents=extents, plot_contours=False)
+    fig = tri.corner(intfoo, labels=labels, extents=extents, plot_contours=False)
     fn = prefix + "c.png"
     print "triangle_plot_chain(): writing " + fn
     fig.savefig(fn)
