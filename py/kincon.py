@@ -39,6 +39,13 @@ class SixPosition:
     def get_sixpos_names(self):
         return np.array([r"$x$", r"$y$", r"$z$", r"$v_x$", r"$v_y$", r"$v_z$"])
 
+    def get_sixpos_extents(self):
+        """
+        bugs:
+        - Way hard-coded.
+        """
+        return [(-200., 200.), (-200., 200.), (-200., 200.), (-500., 500.), (-500., 500.), (-500., 500.)]
+
     def get_sun_sixpos(self):
         """
         output:
@@ -136,6 +143,13 @@ class SixPosition:
 
     def get_observables_names(self):
         return np.array([r"$l$", r"$b$", r"$DM$", r"$\dot{l}$", r"$\dot{b}$", r"$v_r$"])
+
+    def get_observables_extents(self):
+        """
+        bugs:
+        - Way hard-coded.
+        """
+        return [(0., 360.), (-90., 90.), (17.6, 21.6), (-2., 2.), (-2., 2.), (-500., 500.)]
 
     def get_potential_energy(self):
         return self.potential_amplitude * 0.5 * np.log(np.sum(self.get_sixpos()[:3] ** 2) / 200. ** 2) # MAGIC NUMBER 200 kpc
@@ -395,7 +409,9 @@ def triangle_plot_chain(chain, lnprob, prefix):
     bar = SixPosition(chain[0]) # temporary variable to get names
     foo = np.concatenate((chain, lnprob.reshape((nx, 1))), axis=1)
     labels = np.append(bar.get_sixpos_names(), [r"$\ln p$"])
-    fig = tri.corner(foo.transpose(), labels=labels, plot_contours=False)
+    extents = bar.get_sixpos_extents() + [(maxlnp-9.5, maxlnp+0.5)]
+    print extents
+    fig = tri.corner(foo.transpose(), labels=labels, extents=extents, plot_contours=False)
     fn = prefix + "a.png"
     print "triangle_plot_chain(): writing " + fn
     fig.savefig(fn)
@@ -403,7 +419,9 @@ def triangle_plot_chain(chain, lnprob, prefix):
     for i in range(nx):
         obsfoo[i,:6] = SixPosition(foo[i,:6]).get_observables_array()
     labels = np.append(bar.get_observables_names(), [r"$\ln p$"])
-    fig = tri.corner(obsfoo.transpose(), labels=labels, plot_contours=False)
+    extents = bar.get_observables_extents() + [(maxlnp-9.5, maxlnp+0.5)]
+    print extents
+    fig = tri.corner(obsfoo.transpose(), labels=labels, extents=extents, plot_contours=False)
     fn = prefix + "b.png"
     print "triangle_plot_chain(): writing " + fn
     fig.savefig(fn)
