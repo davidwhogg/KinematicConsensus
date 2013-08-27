@@ -149,7 +149,7 @@ class SixPosition:
         bugs:
         - Way hard-coded.
         """
-        return [(0., 360.), (-90., 90.), (17.6, 21.6), (-2., 2.), (-2., 2.), (-500., 500.)]
+        return [(0., 360.), (-90., 90.), (14.5, 26.5), (-2., 2.), (-2., 2.), (-500., 500.)]
 
     def get_potential_energy(self):
         return self.potential_amplitude * 0.5 * np.log(np.sum(self.get_sixpos()[:3] ** 2) / 200. ** 2) # MAGIC NUMBER 200 kpc
@@ -402,13 +402,12 @@ def triangle_plot_chain(chain, lnprob, prefix):
     Make a 7x7 triangle.
     """
     nx, nq = chain.shape
-    print chain.shape, lnprob.shape
     maxlnp = np.max(lnprob)
+    lnpextent = [(maxlnp-14.5, maxlnp+0.5)]
     bar = SixPosition(chain[0]) # temporary variable to get names
     foo = np.concatenate((chain, lnprob.reshape((nx, 1))), axis=1)
     labels = np.append(bar.get_sixpos_names(), [r"$\ln p$"])
-    extents = bar.get_sixpos_extents() + [(maxlnp-9.5, maxlnp+0.5)]
-    print extents
+    extents = bar.get_sixpos_extents() + lnpextent
     fig = tri.corner(foo, labels=labels, extents=extents, plot_contours=False)
     fn = prefix + "a.png"
     print "triangle_plot_chain(): writing " + fn
@@ -417,8 +416,7 @@ def triangle_plot_chain(chain, lnprob, prefix):
     for i in range(nx):
         obsfoo[i,:6] = SixPosition(foo[i,:6]).get_observables_array()
     labels = np.append(bar.get_observables_names(), [r"$\ln p$"])
-    extents = bar.get_observables_extents() + [(maxlnp-9.5, maxlnp+0.5)]
-    print extents
+    extents = bar.get_observables_extents() + lnpextent
     fig = tri.corner(obsfoo, labels=labels, extents=extents, plot_contours=False)
     fn = prefix + "b.png"
     print "triangle_plot_chain(): writing " + fn
@@ -427,8 +425,7 @@ def triangle_plot_chain(chain, lnprob, prefix):
     for i in range(nx):
         intfoo[i,:4] = SixPosition(foo[i,:6]).get_integrals_of_motion()
     labels = np.append(bar.get_integrals_of_motion_names(), [r"$\ln p$"])
-    extents = bar.get_integrals_of_motion_extents() + [(maxlnp-9.5, maxlnp+0.5)]
-    print extents
+    extents = bar.get_integrals_of_motion_extents() + lnpextent
     fig = tri.corner(intfoo, labels=labels, extents=extents, plot_contours=False)
     fn = prefix + "c.png"
     print "triangle_plot_chain(): writing " + fn
