@@ -186,6 +186,16 @@ class SixPosition:
         """
         return np.cross(self.get_helio_3pos(), self.get_helio_3vel())
 
+    def get_dimensionless_angular_momentum(self):
+        """
+        Return a dimensionless angular momentum quantity.
+
+        bugs:
+        - Hard-coded to this potential.
+        """
+        return np.sqrt(np.sum(self.get_angular_momentum() ** 2)
+                       / self.potential_amplitude) / self.get_semimajor_axis()
+
     def _root_find(self, Q, x1, x2):
         """
         Very brittle root finder.
@@ -226,17 +236,19 @@ class SixPosition:
         return np.array([lpole, bpole])
 
     def get_integrals_of_motion(self):
-        return np.concatenate((np.array([self.get_semimajor_axis(), self.get_eccentricity()]), self.get_angular_momentum_angles()))
+        return np.concatenate((np.array([self.get_semimajor_axis(),
+                                         self.get_dimensionless_angular_momentum()]),
+                               self.get_angular_momentum_angles()))
 
     def get_integrals_of_motion_names(self):
-        return np.array([r"$a$", r"$e$", r"$l^{(0)}$", r"$b^{(0)}$"])
+        return np.array([r"$a$", r"$|L|/(v_0^2\,a)$", r"$l^{(0)}$", r"$b^{(0)}$"])
 
     def get_integrals_of_motion_extents(self):
         """
         bugs:
         - Way hard-coded.
         """
-        return [(0., 150.), (0., 1.), (0., 360.), (-90., 90.)]
+        return [(0., 150.), (0., 3.), (0., 360.), (-90., 90.)]
 
 class ObservedStar:
 
@@ -499,7 +511,7 @@ def figure_01():
     sixpos = SixPosition([-12., 5., 22., 115., 20., 160.])
     lb, dm, pm, rv = sixpos.get_observables()
     lb_ivar = np.diag([1e9 * np.cos(np.deg2rad(lb[1])) ** 2, 1e9]) # deg^{-2}
-    dm_ivar = 1. / (0.30 ** 2) # mag^{-2}
+    dm_ivar = 1. / (0.15 ** 2) # mag^{-2}
     pm_ivar = np.diag([0., 0.]) # mas^{-2} yr^2
     rv_ivar = 1. # km^{-2} s^2
     star = ObservedStar(lb, lb_ivar, dm, dm_ivar, pm, pm_ivar, rv, rv_ivar)
@@ -512,12 +524,16 @@ def figure_01():
     good[: nx * ny / 2] = False
     indx = (np.arange(nx * ny))[good]
     triangle_plot_chain(chain[indx, :], lnprob[indx], "figure_01")
-    N = 4096
-    chain, lnprob = star.get_posterior_samples()
-    nx, ny, nd = chain.shape
-    chain = chain.reshape((nx * ny, nd))
-    lnprob = lnprob.reshape((nx * ny))
-    triangle_plot_chain(chain[nx * ny / 2 :, :], lnprob[nx * ny / 2 :], "figure_02")
+    for fig in range(4):
+        sixpos = SixPosition(chain[np.random.randint(nx * ny)])
+        lb, dm, pm, rv = sixpos.get_observables()
+        star = ObservedStar(lb, lb_ivar, dm, dm_ivar, pm, pm_ivar, rv, rv_ivar)
+        chain, lnprob = star.get_posterior_samples()
+        nx, ny, nd = chain.shape
+        chain = chain.reshape((nx * ny, nd))
+        lnprob = lnprob.reshape((nx * ny))
+        prefix = "figure_%02d" % (fig + 2)
+        triangle_plot_chain(chain[nx * ny / 2 :, :], lnprob[nx * ny / 2 :], prefix)
     return None
 
 if __name__ == "__main__":
