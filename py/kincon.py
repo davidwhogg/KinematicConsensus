@@ -368,7 +368,8 @@ class ObservedStar:
         for b in range(nburn):
             sampler = emcee.EnsembleSampler(nwburn, ndim, lnp)
             sampler.run_mcmc(p0, nsburn)
-            p0 = sampler.flatchain[np.random.randint(nwburn * nsburn, size=(nwburn)), :]
+            rindx = np.argsort(sampler.flatlnprobability)[-nsburn:]
+            p0 = sampler.flatchain[rindx[np.random.randint(nsburn, size=(nwburn))], :]
         p1 = sampler.flatchain[np.random.randint(nwburn * nsburn, size=(nw)), :]
         sampler = emcee.EnsembleSampler(nw, ndim, lnp)
         sampler.run_mcmc(p1, ns)
