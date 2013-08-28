@@ -522,10 +522,11 @@ def figure_01():
     prior_obs = np.array([SixPosition(sp).get_observables_array() for sp in chain])
     good = np.logical_and(np.abs(prior_obs[:,1]) > 30., prior_obs[:,2] < 20.4) # deg, mag
     good[: nx * ny / 2] = False
+    ngood = np.sum(good)
     indx = (np.arange(nx * ny))[good]
     triangle_plot_chain(chain[indx, :], lnprob[indx], "figure_01")
     for fig in range(4):
-        sixpos = SixPosition(chain[np.random.randint(nx * ny)])
+        sixpos = SixPosition(chain[indx[np.random.randint(ngood)]])
         lb, dm, pm, rv = sixpos.get_observables()
         star = ObservedStar(lb, lb_ivar, dm, dm_ivar, pm, pm_ivar, rv, rv_ivar)
         chain, lnprob = star.get_posterior_samples()
