@@ -524,17 +524,19 @@ def figure_01():
     good[: nx * ny / 2] = False
     ngood = np.sum(good)
     indx = (np.arange(nx * ny))[good]
-    triangle_plot_chain(chain[indx, :], lnprob[indx], "figure_01")
+    chain = chain[indx, :]
+    lnprob = lnprob[indx, :]
+    triangle_plot_chain(chain, lnprob, "figure_01")
     for fig in range(4):
-        sixpos = SixPosition(chain[indx[np.random.randint(ngood)]])
+        sixpos = SixPosition(chain[np.random.randint(ngood)])
         lb, dm, pm, rv = sixpos.get_observables()
         star = ObservedStar(lb, lb_ivar, dm, dm_ivar, pm, pm_ivar, rv, rv_ivar)
-        chain, lnprob = star.get_posterior_samples()
-        nx, ny, nd = chain.shape
-        chain = chain.reshape((nx * ny, nd))
-        lnprob = lnprob.reshape((nx * ny))
+        chain1, lnprob1 = star.get_posterior_samples()
+        nx, ny, nd = chain1.shape
+        chain1 = chain1.reshape((nx * ny, nd))
+        lnprob1 = lnprob1.reshape((nx * ny))
         prefix = "figure_%02d" % (fig + 2)
-        triangle_plot_chain(chain[nx * ny / 2 :, :], lnprob[nx * ny / 2 :], prefix)
+        triangle_plot_chain(chain1[nx * ny / 2 :, :], lnprob1[nx * ny / 2 :], prefix)
     return None
 
 if __name__ == "__main__":
