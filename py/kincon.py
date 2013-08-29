@@ -498,7 +498,7 @@ def unit_tests():
     print "unit_tests(): all tests passed"
     return True
 
-def triangle_plot_chain(chain, lnprob, prefix, truth=None):
+def triangle_plot_chain(chain, lnprob, prefix, truth=None, truth_lnprob=0.):
     """
     Make a 7x7 triangle.
     """
@@ -510,7 +510,7 @@ def triangle_plot_chain(chain, lnprob, prefix, truth=None):
     if truth is None:
         truths = None
     else:
-        truths = (np.append(truth, [maxlnp]), )
+        truths = (np.append(truth, [truth_lnprob]), )
     labels = np.append(bar.get_sixpos_names(), [r"$\ln p$"])
     extents = bar.get_sixpos_extents() + lnpextent
     fig = tri.corner(foo, labels=labels, extents=extents,
