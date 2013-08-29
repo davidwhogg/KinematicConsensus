@@ -362,9 +362,11 @@ class ObservedStar:
         bugs:
         - Lots of things hard-coded.
         """
-        ndim, nw, ns, nburn, nwburn, nsburn = 6, 32, f * 1024, 4, 16, f * 512
+        ndim, nw, ns, nburn, nwburn, nsburn = 6, 32, f * 1024, 8, 16, 512
         pf = self.get_fiducial_sixpos().get_sixpos()
-        p0 = [pf + 1e-6 * np.random.normal(ndim) for i in range(nwburn)]
+        amp = np.zeros_like(pf) + 0.1 # km s^{-1}
+        amp[:3] = 1.e-6 # kpc
+        p0 = [pf + amp * np.random.normal(ndim) for i in range(nwburn)]
         for b in range(nburn):
             sampler = emcee.EnsembleSampler(nwburn, ndim, lnp)
             sampler.run_mcmc(p0, nsburn)
@@ -387,7 +389,7 @@ class ObservedStar:
         Run emcee to generate posterior samples of true position given measured position.
         """
         lnp = lambda sp: self.ln_prior(SixPosition(sp))
-        return self._get_samples(lnp, f=16)
+        return self._get_samples(lnp, f=32)
 
 def unit_tests():
     """
@@ -450,10 +452,10 @@ def unit_tests():
         print "unit tests(): failed unit-vector orthogonality test"
         return False
     lb, dm, pm, rv = sixpos.get_observables()
-    lb_ivar = np.diag([1e9, 1e9]) # deg^{-2}
+    lb_ivar = np.diag([1e8, 1e8]) # deg^{-2}
     dm_ivar = 1. / (0.15 ** 2) # mag^{-2}
     pm_ivar = np.diag([0., 0.]) # mas^{-2} yr^2
-    rv_ivar = 1. # km^{-2} s^2
+    rv_ivar = 1. / (2. ** 2) # km^{-2} s^2
     star = ObservedStar(lb, lb_ivar, dm, dm_ivar, pm, pm_ivar, rv, rv_ivar)
     if np.any(np.abs(sixpos.get_sixpos() - star.get_fiducial_sixpos().get_sixpos()) > 1000. * tiny):
         print sixpos.get_sixpos(), star.get_fiducial_sixpos().get_sixpos()
@@ -521,14 +523,16 @@ def figure_01():
     chain = chain.reshape((nx * ny, nd))
     lnprob = lnprob.reshape((nx * ny))
     prior_obs = np.array([SixPosition(sp).get_observables_array() for sp in chain])
-    good = np.logical_and(np.abs(prior_obs[:,1]) > 30., prior_obs[:,2] < 20.4) # deg, mag
+    good = np.logical_and(np.abs(prior_obs[:,1]) > 30., # deg
+                          np.logical_and(prior_obs[:,2] > 13.5, # mag
+                                         prior_obs[:,2] < 20.4)) # mag
     good[: nx * ny / 2] = False
     ngood = np.sum(good)
     indx = (np.arange(nx * ny))[good]
     chain = chain[indx, :]
     lnprob = lnprob[indx, :]
     triangle_plot_chain(chain, lnprob, "figure_01")
-    for fig in range(4):
+    for fig in range(8):
         sixpos = SixPosition(chain[np.random.randint(ngood)])
         lb, dm, pm, rv = sixpos.get_observables()
         star = ObservedStar(lb, lb_ivar, dm, dm_ivar, pm, pm_ivar, rv, rv_ivar)
