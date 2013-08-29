@@ -296,13 +296,26 @@ class ObservedStar:
         """
         Perturb with Gaussian noise according to the `ivar` values and return a perturbed copy.
         """
-        lb = self.lb + np.random.multivariate_normal([0., 0.], np.linalg.inv(self.lb_ivar))
-        lb_ivar = 1. * self.lb_ivar
-        dm = self.dm + np.random.normal() / np.sqrt(self.dm_ivar)
-        dm_ivar = 1. * self.dm_ivar
-        print self.lb, lb
-        print self.dm, dm
-        assert False
+        if np.linalg.det(self.lb_ivar) > 0.:
+            lb = self.lb + np.random.multivariate_normal([0., 0.], np.linalg.inv(self.lb_ivar))
+        else:
+            lb = np.zeros_like(self.lb)
+        lb_ivar = 1. * self.lb_ivar # copy
+        if self.dm_ivar > 0.:
+            dm = self.dm + np.random.normal() / np.sqrt(self.dm_ivar)
+        else:
+            dm = 0.
+        dm_ivar = 1. * self.dm_ivar # copy
+        if np.linalg.det(self.pm_ivar) > 0.:
+            pm = self.pm + np.random.multivariate_normal([0., 0.], np.linalg.inv(self.pm_ivar))
+        else:
+            pm = np.zeros_like(self.pm)
+        pm_ivar = 1. * self.pm_ivar # copy
+        if self.rv_ivar > 0.:
+            rv = self.rv + np.random.normal() / np.sqrt(self.rv_ivar)
+        else:
+            rv = 0.
+        rv_ivar = 1. * self.rv_ivar # copy
         return ObservedStar(lb, lb_ivar, dm, dm_ivar, pm, pm_ivar, rv, rv_ivar)
 
     def get_fiducial_sixpos(self):
@@ -473,7 +486,7 @@ def unit_tests():
         print "unit tests(): failed unit-vector orthogonality test"
         return False
     lb, dm, pm, rv = sixpos.get_observables()
-    lb_ivar = np.diag([1e8, 1e8]) # deg^{-2}
+    lb_ivar = np.diag([1e8 * np.cos(np.deg2rad(lb[1])) ** 2, 1e8]) # deg^{-2}
     dm_ivar = 1. / (0.30 ** 2) # mag^{-2}
     pm_ivar = np.diag([0., 0.]) # mas^{-2} yr^2
     rv_ivar = 1. / (7. ** 2) # km^{-2} s^2
@@ -551,12 +564,11 @@ def figure_01():
     print "hello world"
     sixpos = SixPosition([-12., 5., 22., 115., 20., 160.])
     lb, dm, pm, rv = sixpos.get_observables()
-    lb_ivar = np.diag([1e9 * np.cos(np.deg2rad(lb[1])) ** 2, 1e9]) # deg^{-2}
-    dm_ivar = 1. / (0.15 ** 2) # mag^{-2}
+    lb_ivar = np.diag([1e8 * np.cos(np.deg2rad(lb[1])) ** 2, 1e8]) # deg^{-2}
+    dm_ivar = 1. / (0.30 ** 2) # mag^{-2}
     pm_ivar = np.diag([0., 0.]) # mas^{-2} yr^2
-    rv_ivar = 1. # km^{-2} s^2
+    rv_ivar = 1. / (7. ** 2) # km^{-2} s^2
     star = ObservedStar(lb, lb_ivar, dm, dm_ivar, pm, pm_ivar, rv, rv_ivar)
-    crap = star.get_noisy_copy()
     chain, lnprob = star.get_prior_samples()
     nx, ny, nd = chain.shape
     chain = chain.reshape((nx * ny, nd))
