@@ -6,6 +6,9 @@ bugs / issues:
 - Doesn't add observational noise to ObservedStar.
 - Could sample velocity and position independently.
 - Could sample velocity analytically!
+- Need to make a figure that tests potential dependence.
+- Needs a consensus function or functionality.
+- Needs to ingest a catalog and sample it.
 """
 
 import numpy as np
@@ -31,7 +34,8 @@ class SixPosition:
         self.xhat = np.array([1., 0., 0.])
         self.yhat = np.array([0., 1., 0.])
         self.zhat = np.array([0., 0., 1.])
-        self.potential_amplitude = 200.**2 # km^2 s^{-2}
+        self.potential_amplitude = 173.**2 # km^2 s^{-2}
+        self.potential_scale = 100. # kpc
         return None
 
     def get_sixpos(self):
@@ -49,7 +53,7 @@ class SixPosition:
         bugs:
         - Way hard-coded.
         """
-        return [(-200., 200.), (-200., 200.), (-200., 200.), (-500., 500.), (-500., 500.), (-500., 500.)]
+        return [(-120., 120.), (-120., 120.), (-120., 120.), (-500., 500.), (-500., 500.), (-500., 500.)]
 
     def get_sun_sixpos(self):
         """
@@ -154,42 +158,105 @@ class SixPosition:
         bugs:
         - Way hard-coded.
         """
-        return [(0., 360.), (-90., 90.), (17.6, 21.6), (-2., 2.), (-2., 2.), (-500., 500.)]
+        return [(0., 360.), (-90., 90.), (12.5, 20.5), (-2., 2.), (-2., 2.), (-500., 500.)]
 
     def get_potential_energy(self):
-        return self.potential_amplitude * 0.5 * np.log(np.sum(self.get_sixpos()[:3] ** 2) / 200. ** 2) # MAGIC NUMBER 200 kpc
+        """
+        bugs:
+        - Hard-coded to this potential.
+        """
+        return self.potential_amplitude * 0.5 * np.log(np.sum(self.get_sixpos()[:3] ** 2) / self.potential_scale ** 2)
 
     def get_kinetic_energy(self):
+        """
+        Duh.
+        """
         return 0.5 * np.sum(self.get_sixpos()[3:] ** 2)
 
     def get_energy(self):
+        """
+        Duh.
+        """
         return self.get_potential_energy() + self.get_kinetic_energy()
 
+    def get_semimajor_axis(self):
+        """
+        Return the radius at which a star with this *energy* would be on a circular orbit.
+
+        bugs:
+        - Hard-coded to this potential.
+        """
+        return self.potential_scale * np.exp(self.get_energy() / self.potential_amplitude - 0.5)
+
     def get_angular_momentum(self):
+        """
+        Return the current value of the Galactocentric angular momentum (kpc km s^{-1}).
+        """
         return np.cross(self.get_helio_3pos(), self.get_helio_3vel())
+
+    def get_dimensionless_angular_momentum(self):
+        """
+        Return a dimensionless angular momentum quantity.
+
+        bugs:
+        - Hard-coded to this potential.
+        """
+        return np.sqrt(np.sum(self.get_angular_momentum() ** 2)
+                       / self.potential_amplitude) / self.get_semimajor_axis()
+
+    def _root_find(self, Q, x1, x2):
+        """
+        Very brittle root finder.
+        """
+        tol = 0.001
+        Q1 = Q(x1)
+        while x2 - x1 > tol:
+            x3 = 0.5 * (x1 + x2)
+            if Q(x3) / Q1 > 0.:
+                x1 = x3
+            else:
+                x2 = x3
+        return x3
+
+    def get_eccentricity(self):
+        """
+        Return the generalized eccentricity.
+
+        bugs:
+        - Hard-coded to this potential (and doesn't need to be).
+        - Uses root finding!
+        """
+        lna = np.log(self.get_semimajor_axis())
+        L = np.sqrt(np.sum(self.get_angular_momentum() ** 2))
+        Q = lambda lnr: lnr + 0.5 * L ** 2 / (self.potential_amplitude * np.exp(2. * lnr)) - lna - 0.5
+        rperi = self._root_find(Q, lna - 64., lna)
+        rap = self._root_find(Q, lna, lna + 64)
+        return (rap - rperi) / (rap + rperi)
 
     def get_angular_momentum_angles(self):
         L = self.get_angular_momentum()
         absL = np.sqrt(np.sum(L ** 2))
         Lhat = L / absL
-        l = np.rad2deg(np.arctan2(L[1], L[0]))
-        while l < 0.:
-            l += 360.
-        b = np.rad2deg(np.arcsin(Lhat[2]))
-        return np.array([absL, l, b])
+        lpole = np.rad2deg(np.arctan2(L[1], L[0]))
+        while lpole < 0.:
+            lpole += 360.
+        bpole = np.rad2deg(np.arcsin(Lhat[2]))
+        return np.array([lpole, bpole])
 
     def get_integrals_of_motion(self):
-        return np.concatenate(([self.get_energy()], self.get_angular_momentum_angles()))
+        return np.concatenate((np.array([self.get_semimajor_axis(),
+                                         self.get_dimensionless_angular_momentum()]),
+                               self.get_angular_momentum_angles()))
 
     def get_integrals_of_motion_names(self):
-        return np.array([r"E", r"$|L|$", r"$l^{(0)}$", r"$b^{(0)}$"])
+        return np.array([r"$a$", r"$|L|/(v_0^2\,a)$", r"$l^{(0)}$", r"$b^{(0)}$"])
 
     def get_integrals_of_motion_extents(self):
         """
         bugs:
         - Way hard-coded.
         """
-        return [(-80000., 80000.), (0, 80000.), (0., 360.), (-90., 90.)]
+        return [(0., 150.), (0., 3.), (0., 360.), (-90., 90.)]
 
 class ObservedStar:
 
@@ -213,9 +280,8 @@ class ObservedStar:
         - pm quantity should be the isotropic angular velocity components, not just l-dot, b-dot (ie, there is a cosine in there).
         - ONLY works for distance modulus measurements, DOESN'T work for parallax measurements (yet).
         """
-        self.prior_dmin = 0.02 # kpc
-        self.prior_dmax = 200. # kpc
-        self.prior_vvariance = 150. * 150. # km^2 s^{-2}
+        self.prior_dbreak = 10. # kpc
+        self.prior_vvariance = 100. * 100. # km^2 s^{-2}
         self.lb = lb
         self.lb_ivar = lb_ivar
         self.dm = dm
@@ -225,6 +291,19 @@ class ObservedStar:
         self.rv = rv
         self.rv_ivar = rv_ivar
         return None
+
+    def get_noisy_copy(self):
+        """
+        Perturb with Gaussian noise according to the `ivar` values and return a perturbed copy.
+        """
+        lb = self.lb + np.random.multivariate_normal([0., 0.], np.linalg.inv(self.lb_ivar))
+        lb_ivar = 1. * self.lb_ivar
+        dm = self.dm + np.random.normal() / np.sqrt(self.dm_ivar)
+        dm_ivar = 1. * self.dm_ivar
+        print self.lb, lb
+        print self.dm, dm
+        assert False
+        return ObservedStar(lb, lb_ivar, dm, dm_ivar, pm, pm_ivar, rv, rv_ivar)
 
     def get_fiducial_sixpos(self):
         """
@@ -259,13 +338,11 @@ class ObservedStar:
         - totally made up and sucks!
         """
         foo = sixpos.get_sixpos()
-        d2 = np.sum(foo[:3] ** 2)
-        if (d2 > self.prior_dmax ** 2):
-            return -np.inf
-        if (d2 < self.prior_dmin ** 2):
-            ln_pos_prior = 1. / self.prior_dmin ** 2
+        d = np.sqrt(np.sum(foo[:3] ** 2))
+        if (d < self.prior_dbreak):
+            ln_pos_prior = 0. # constant on the inside
         else:
-            ln_pos_prior = 1. / d2
+            ln_pos_prior = 3. * np.log(self.prior_dbreak / d) # 1 / distance^3 on the outside
         ln_vel_prior = -0.5 * np.sum(foo[3:] ** 2) / self.prior_vvariance
         return ln_pos_prior + ln_vel_prior
 
@@ -299,18 +376,14 @@ class ObservedStar:
             return lnp + self.ln_likelihood(sixpos)
         return -np.inf
 
-    def _get_samples(self, lnp):
+    def _get_samples(self, lnp, f=1):
         """
         Run emcee to generate samples.
 
         bugs:
         - Lots of things hard-coded.
         """
-<<<<<<< HEAD
         ndim, nw, ns, nburn, nwburn, nsburn = 6, 32, f * 1024, 8, 16, 512
-=======
-        ndim, nw, ns, nburn, nwburn, nsburn = 6, 32, 1024, 4, 16, 512
->>>>>>> 336d0fff8172a4649d884ce62bf96fce5407cb8d
         pf = self.get_fiducial_sixpos().get_sixpos()
         amp = np.zeros_like(pf) + 0.1 # km s^{-1}
         amp[:3] = 1.e-6 # kpc
@@ -318,7 +391,8 @@ class ObservedStar:
         for b in range(nburn):
             sampler = emcee.EnsembleSampler(nwburn, ndim, lnp)
             sampler.run_mcmc(p0, nsburn)
-            p0 = sampler.flatchain[np.random.randint(nwburn * nsburn, size=(nwburn)), :]
+            rindx = np.argsort(sampler.flatlnprobability)[-nsburn:]
+            p0 = sampler.flatchain[rindx[np.random.randint(nsburn, size=(nwburn))], :]
         p1 = sampler.flatchain[np.random.randint(nwburn * nsburn, size=(nw)), :]
         sampler = emcee.EnsembleSampler(nw, ndim, lnp)
         sampler.run_mcmc(p1, ns)
@@ -336,11 +410,7 @@ class ObservedStar:
         Run emcee to generate posterior samples of true position given measured position.
         """
         lnp = lambda sp: self.ln_prior(SixPosition(sp))
-<<<<<<< HEAD
         return self._get_samples(lnp, f=32)
-=======
-        return self._get_samples(lnp)
->>>>>>> 336d0fff8172a4649d884ce62bf96fce5407cb8d
 
 def unit_tests():
     """
@@ -404,9 +474,9 @@ def unit_tests():
         return False
     lb, dm, pm, rv = sixpos.get_observables()
     lb_ivar = np.diag([1e8, 1e8]) # deg^{-2}
-    dm_ivar = 1. / (0.15 ** 2) # mag^{-2}
+    dm_ivar = 1. / (0.30 ** 2) # mag^{-2}
     pm_ivar = np.diag([0., 0.]) # mas^{-2} yr^2
-    rv_ivar = 1. / (2. ** 2) # km^{-2} s^2
+    rv_ivar = 1. / (7. ** 2) # km^{-2} s^2
     star = ObservedStar(lb, lb_ivar, dm, dm_ivar, pm, pm_ivar, rv, rv_ivar)
     if np.any(np.abs(sixpos.get_sixpos() - star.get_fiducial_sixpos().get_sixpos()) > 1000. * tiny):
         print sixpos.get_sixpos(), star.get_fiducial_sixpos().get_sixpos()
@@ -421,7 +491,7 @@ def triangle_plot_chain(chain, lnprob, prefix, truth=None):
     """
     nx, nq = chain.shape
     maxlnp = np.max(lnprob)
-    print nx,nq,maxlnp
+    lnpextent = [(maxlnp-14.5, maxlnp+0.5)]
     bar = SixPosition(chain[0]) # temporary variable to get names
     foo = np.concatenate((chain, lnprob.reshape((nx, 1))), axis=1)
     if truth is None:
@@ -429,18 +499,9 @@ def triangle_plot_chain(chain, lnprob, prefix, truth=None):
     else:
         truths = (np.append(truth, [maxlnp]), )
     labels = np.append(bar.get_sixpos_names(), [r"$\ln p$"])
-<<<<<<< HEAD
     extents = bar.get_sixpos_extents() + lnpextent
     fig = tri.corner(foo, labels=labels, extents=extents,
                      truths=truths, plot_contours=False)
-=======
-    extents = bar.get_sixpos_extents() + [(maxlnp-9.5, maxlnp+0.5)]
-    print extents
-    print foo.transpose().shape
-    quit()
-    
-    fig = tri.corner(foo.transpose(), labels=labels, extents=extents, plot_contours=False)
->>>>>>> 336d0fff8172a4649d884ce62bf96fce5407cb8d
     fn = prefix + "a.png"
     print "triangle_plot_chain(): writing " + fn
     fig.savefig(fn)
@@ -453,15 +514,9 @@ def triangle_plot_chain(chain, lnprob, prefix, truth=None):
         trueobs = 1. * truths # copy
         trueobs[0,:6] = SixPosition(truth[:6]).get_observables_array()
     labels = np.append(bar.get_observables_names(), [r"$\ln p$"])
-<<<<<<< HEAD
     extents = bar.get_observables_extents() + lnpextent
     fig = tri.corner(obsfoo, labels=labels, extents=extents,
                      truths=trueobs, plot_contours=False)
-=======
-    extents = bar.get_observables_extents() + [(maxlnp-9.5, maxlnp+0.5)]
-    print extents
-    fig = tri.corner(obsfoo.transpose(), labels=labels, extents=extents, plot_contours=False)
->>>>>>> 336d0fff8172a4649d884ce62bf96fce5407cb8d
     fn = prefix + "b.png"
     print "triangle_plot_chain(): writing " + fn
     fig.savefig(fn)
@@ -474,15 +529,9 @@ def triangle_plot_chain(chain, lnprob, prefix, truth=None):
         trueint = 1. * truths[:,2:] # copy
         trueint[0,:4] = SixPosition(truth).get_integrals_of_motion()
     labels = np.append(bar.get_integrals_of_motion_names(), [r"$\ln p$"])
-<<<<<<< HEAD
     extents = bar.get_integrals_of_motion_extents() + lnpextent
     fig = tri.corner(intfoo, labels=labels, extents=extents,
                      truths=trueint, plot_contours=False)
-=======
-    extents = bar.get_integrals_of_motion_extents() + [(maxlnp-9.5, maxlnp+0.5)]
-    print extents
-    fig = tri.corner(intfoo.transpose(), labels=labels, extents=extents, plot_contours=False)
->>>>>>> 336d0fff8172a4649d884ce62bf96fce5407cb8d
     fn = prefix + "c.png"
     print "triangle_plot_chain(): writing " + fn
     fig.savefig(fn)
@@ -490,7 +539,11 @@ def triangle_plot_chain(chain, lnprob, prefix, truth=None):
 
 def figure_01():
     """
-    Make figure 1.
+    Make figure 1. and maybe 2.
+
+    comments:
+    - Cut out stars from prior that are at |b| < 30 deg.
+    - Cut out stars from prior that have heliocentric distances > 120 kpc.
 
     bugs:
     - HACK: NOT YET WRITTEN
@@ -499,50 +552,37 @@ def figure_01():
     sixpos = SixPosition([-12., 5., 22., 115., 20., 160.])
     lb, dm, pm, rv = sixpos.get_observables()
     lb_ivar = np.diag([1e9 * np.cos(np.deg2rad(lb[1])) ** 2, 1e9]) # deg^{-2}
-    dm_ivar = 1. / (0.30 ** 2) # mag^{-2}
+    dm_ivar = 1. / (0.15 ** 2) # mag^{-2}
     pm_ivar = np.diag([0., 0.]) # mas^{-2} yr^2
     rv_ivar = 1. # km^{-2} s^2
     star = ObservedStar(lb, lb_ivar, dm, dm_ivar, pm, pm_ivar, rv, rv_ivar)
+    crap = star.get_noisy_copy()
     chain, lnprob = star.get_prior_samples()
     nx, ny, nd = chain.shape
-    print chain.shape
     chain = chain.reshape((nx * ny, nd))
     lnprob = lnprob.reshape((nx * ny))
-<<<<<<< HEAD
     prior_obs = np.array([SixPosition(sp).get_observables_array() for sp in chain])
     good = np.logical_and(np.abs(prior_obs[:,1]) > 30., # deg
                           np.logical_and(prior_obs[:,2] > 13.5, # mag
                                          prior_obs[:,2] < 20.4)) # mag
-=======
-    lbs = np.array([SixPosition(sp).get_observables()[0] for sp in chain])
-    good = np.abs(lbs[:,1]) > 30. # deg
->>>>>>> 336d0fff8172a4649d884ce62bf96fce5407cb8d
     good[: nx * ny / 2] = False
+    ngood = np.sum(good)
     indx = (np.arange(nx * ny))[good]
-<<<<<<< HEAD
     chain = chain[indx, :]
     lnprob = lnprob[indx, :]
     triangle_plot_chain(chain, lnprob, "figure_01")
     for fig in range(8):
         sixpos = SixPosition(chain[np.random.randint(ngood)])
         lb, dm, pm, rv = sixpos.get_observables()
-        star = ObservedStar(lb, lb_ivar, dm, dm_ivar, pm, pm_ivar, rv, rv_ivar)
-        chain1, lnprob1 = star.get_posterior_samples()
+        truestar = ObservedStar(lb, lb_ivar, dm, dm_ivar, pm, pm_ivar, rv, rv_ivar)
+        realstar = truestar.get_noisy_copy() # add observational noise
+        chain1, lnprob1 = realstar.get_posterior_samples()
         nx, ny, nd = chain1.shape
         chain1 = chain1.reshape((nx * ny, nd))
         lnprob1 = lnprob1.reshape((nx * ny))
         prefix = "figure_%02d" % (fig + 2)
         triangle_plot_chain(chain1[nx * ny / 2 :, :], lnprob1[nx * ny / 2 :],
                             prefix) # , truth=sixpos.get_sixpos())
-=======
-    triangle_plot_chain(chain[indx, :], lnprob[indx], "figure_01")
-    N = 4096
-    chain, lnprob = star.get_posterior_samples()
-    nx, ny, nd = chain.shape
-    chain = chain.reshape((nx * ny, nd))
-    lnprob = lnprob.reshape((nx * ny))
-    triangle_plot_chain(chain[nx * ny / 2 :, :], lnprob[nx * ny / 2 :], "figure_02")
->>>>>>> 336d0fff8172a4649d884ce62bf96fce5407cb8d
     return None
 
 if __name__ == "__main__":
