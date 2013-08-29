@@ -3,12 +3,12 @@ This file is part of the Kinematic Consensus project.
 Copyright 2013 David W. Hogg (NYU)
 
 bugs / issues:
-- Doesn't add observational noise to ObservedStar.
-- Could sample velocity and position independently.
-- Could sample velocity analytically!
 - Need to make a figure that tests potential dependence.
 - Needs a consensus function or functionality.
 - Needs to ingest a catalog and sample it.
+- Could sample velocity and position independently.
+- Could sample velocity analytically!
+- Ought to pickle the prior sampling for reuse.
 """
 
 import numpy as np
@@ -510,7 +510,7 @@ def triangle_plot_chain(chain, lnprob, prefix, truth=None, truth_lnprob=0.):
     if truth is None:
         truths = None
     else:
-        truths = (np.append(truth, [truth_lnprob]), )
+        truths = np.append(truth, [truth_lnprob])
     labels = np.append(bar.get_sixpos_names(), [r"$\ln p$"])
     extents = bar.get_sixpos_extents() + lnpextent
     fig = tri.corner(foo, labels=labels, extents=extents,
@@ -525,7 +525,7 @@ def triangle_plot_chain(chain, lnprob, prefix, truth=None, truth_lnprob=0.):
         trueobs = None
     else:
         trueobs = 1. * truths # copy
-        trueobs[0,:6] = SixPosition(truth[:6]).get_observables_array()
+        trueobs[:6] = SixPosition(truth).get_observables_array()
     labels = np.append(bar.get_observables_names(), [r"$\ln p$"])
     extents = bar.get_observables_extents() + lnpextent
     fig = tri.corner(obsfoo, labels=labels, extents=extents,
@@ -539,8 +539,8 @@ def triangle_plot_chain(chain, lnprob, prefix, truth=None, truth_lnprob=0.):
     if truth is None:
         trueint = None
     else:
-        trueint = 1. * truths[:,2:] # copy
-        trueint[0,:4] = SixPosition(truth).get_integrals_of_motion()
+        trueint = 1. * truths[2:] # copy
+        trueint[:4] = SixPosition(truth).get_integrals_of_motion()
     labels = np.append(bar.get_integrals_of_motion_names(), [r"$\ln p$"])
     extents = bar.get_integrals_of_motion_extents() + lnpextent
     fig = tri.corner(intfoo, labels=labels, extents=extents,
@@ -583,7 +583,7 @@ def figure_01():
     chain = chain[indx, :]
     lnprob = lnprob[indx, :]
     triangle_plot_chain(chain, lnprob, "figure_01")
-    for fig in range(8):
+    for fig in range(16):
         sixpos = SixPosition(chain[np.random.randint(ngood)])
         lb, dm, pm, rv = sixpos.get_observables()
         truestar = ObservedStar(lb, lb_ivar, dm, dm_ivar, pm, pm_ivar, rv, rv_ivar)
@@ -592,9 +592,10 @@ def figure_01():
         nx, ny, nd = chain1.shape
         chain1 = chain1.reshape((nx * ny, nd))
         lnprob1 = lnprob1.reshape((nx * ny))
-        prefix = "figure_%02d" % (fig + 2)
+        prefix = "figure_02_%02d" % fig
         triangle_plot_chain(chain1[nx * ny / 2 :, :], lnprob1[nx * ny / 2 :],
-                            prefix) # , truth=sixpos.get_sixpos())
+                            prefix, truth=sixpos.get_sixpos(),
+                            truth_lnprob=realstar.ln_posterior(sixpos))
     return None
 
 if __name__ == "__main__":
