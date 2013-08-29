@@ -1,6 +1,11 @@
 """
 This file is part of the Kinematic Consensus project.
 Copyright 2013 David W. Hogg (NYU)
+
+bugs / issues:
+- Doesn't add observational noise to ObservedStar.
+- Could sample velocity and position independently.
+- Could sample velocity analytically!
 """
 
 import numpy as np
