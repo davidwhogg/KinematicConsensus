@@ -6,9 +6,6 @@ bugs / issues:
 - Doesn't add observational noise to ObservedStar.
 - Could sample velocity and position independently.
 - Could sample velocity analytically!
-- Need to make a figure that tests potential dependence.
-- Needs a consensus function or functionality.
-- Needs to ingest a catalog and sample it.
 """
 
 import numpy as np
@@ -229,19 +226,6 @@ class ObservedStar:
         self.rv_ivar = rv_ivar
         return None
 
-    def get_noisy_copy(self):
-        """
-        Perturb with Gaussian noise according to the `ivar` values and return a perturbed copy.
-        """
-        lb = self.lb + np.random.multivariate_normal([0., 0.], np.linalg.inv(self.lb_ivar))
-        lb_ivar = 1. * self.lb_ivar
-        dm = self.dm + np.random.normal() / np.sqrt(self.dm_ivar)
-        dm_ivar = 1. * self.dm_ivar
-        print self.lb, lb
-        print self.dm, dm
-        assert False
-        return ObservedStar(lb, lb_ivar, dm, dm_ivar, pm, pm_ivar, rv, rv_ivar)
-
     def get_fiducial_sixpos(self):
         """
         output:
@@ -420,9 +404,9 @@ def unit_tests():
         return False
     lb, dm, pm, rv = sixpos.get_observables()
     lb_ivar = np.diag([1e8, 1e8]) # deg^{-2}
-    dm_ivar = 1. / (0.30 ** 2) # mag^{-2}
+    dm_ivar = 1. / (0.15 ** 2) # mag^{-2}
     pm_ivar = np.diag([0., 0.]) # mas^{-2} yr^2
-    rv_ivar = 1. / (7. ** 2) # km^{-2} s^2
+    rv_ivar = 1. / (2. ** 2) # km^{-2} s^2
     star = ObservedStar(lb, lb_ivar, dm, dm_ivar, pm, pm_ivar, rv, rv_ivar)
     if np.any(np.abs(sixpos.get_sixpos() - star.get_fiducial_sixpos().get_sixpos()) > 1000. * tiny):
         print sixpos.get_sixpos(), star.get_fiducial_sixpos().get_sixpos()
@@ -519,7 +503,6 @@ def figure_01():
     pm_ivar = np.diag([0., 0.]) # mas^{-2} yr^2
     rv_ivar = 1. # km^{-2} s^2
     star = ObservedStar(lb, lb_ivar, dm, dm_ivar, pm, pm_ivar, rv, rv_ivar)
-    crap = star.get_noisy_copy()
     chain, lnprob = star.get_prior_samples()
     nx, ny, nd = chain.shape
     print chain.shape
@@ -543,9 +526,8 @@ def figure_01():
     for fig in range(8):
         sixpos = SixPosition(chain[np.random.randint(ngood)])
         lb, dm, pm, rv = sixpos.get_observables()
-        truestar = ObservedStar(lb, lb_ivar, dm, dm_ivar, pm, pm_ivar, rv, rv_ivar)
-        realstar = truestar.get_noisy_copy() # add observational noise
-        chain1, lnprob1 = realstar.get_posterior_samples()
+        star = ObservedStar(lb, lb_ivar, dm, dm_ivar, pm, pm_ivar, rv, rv_ivar)
+        chain1, lnprob1 = star.get_posterior_samples()
         nx, ny, nd = chain1.shape
         chain1 = chain1.reshape((nx * ny, nd))
         lnprob1 = lnprob1.reshape((nx * ny))
