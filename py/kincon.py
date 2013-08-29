@@ -464,7 +464,7 @@ def unit_tests():
     print "unit_tests(): all tests passed"
     return True
 
-def triangle_plot_chain(chain, lnprob, prefix):
+def triangle_plot_chain(chain, lnprob, prefix, truth=None):
     """
     Make a 7x7 triangle.
     """
@@ -473,27 +473,44 @@ def triangle_plot_chain(chain, lnprob, prefix):
     lnpextent = [(maxlnp-14.5, maxlnp+0.5)]
     bar = SixPosition(chain[0]) # temporary variable to get names
     foo = np.concatenate((chain, lnprob.reshape((nx, 1))), axis=1)
+    if truth is None:
+        truths = None
+    else:
+        truths = (np.append(truth, [maxlnp]), )
     labels = np.append(bar.get_sixpos_names(), [r"$\ln p$"])
     extents = bar.get_sixpos_extents() + lnpextent
-    fig = tri.corner(foo, labels=labels, extents=extents, plot_contours=False)
+    fig = tri.corner(foo, labels=labels, extents=extents,
+                     truths=truths, plot_contours=False)
     fn = prefix + "a.png"
     print "triangle_plot_chain(): writing " + fn
     fig.savefig(fn)
     obsfoo = 1. * foo # copy
     for i in range(nx):
         obsfoo[i,:6] = SixPosition(foo[i,:6]).get_observables_array()
+    if truth is None:
+        trueobs = None
+    else:
+        trueobs = 1. * truths # copy
+        trueobs[0,:6] = SixPosition(truth[:6]).get_observables_array()
     labels = np.append(bar.get_observables_names(), [r"$\ln p$"])
     extents = bar.get_observables_extents() + lnpextent
-    fig = tri.corner(obsfoo, labels=labels, extents=extents, plot_contours=False)
+    fig = tri.corner(obsfoo, labels=labels, extents=extents,
+                     truths=trueobs, plot_contours=False)
     fn = prefix + "b.png"
     print "triangle_plot_chain(): writing " + fn
     fig.savefig(fn)
     intfoo = 1. * foo[:,2:] # copy
     for i in range(nx):
         intfoo[i,:4] = SixPosition(foo[i,:6]).get_integrals_of_motion()
+    if truth is None:
+        trueint = None
+    else:
+        trueint = 1. * truths[:,2:] # copy
+        trueint[0,:4] = SixPosition(truth).get_integrals_of_motion()
     labels = np.append(bar.get_integrals_of_motion_names(), [r"$\ln p$"])
     extents = bar.get_integrals_of_motion_extents() + lnpextent
-    fig = tri.corner(intfoo, labels=labels, extents=extents, plot_contours=False)
+    fig = tri.corner(intfoo, labels=labels, extents=extents,
+                     truths=trueint, plot_contours=False)
     fn = prefix + "c.png"
     print "triangle_plot_chain(): writing " + fn
     fig.savefig(fn)
@@ -541,7 +558,8 @@ def figure_01():
         chain1 = chain1.reshape((nx * ny, nd))
         lnprob1 = lnprob1.reshape((nx * ny))
         prefix = "figure_%02d" % (fig + 2)
-        triangle_plot_chain(chain1[nx * ny / 2 :, :], lnprob1[nx * ny / 2 :], prefix)
+        triangle_plot_chain(chain1[nx * ny / 2 :, :], lnprob1[nx * ny / 2 :],
+                            prefix) # , truth=sixpos.get_sixpos())
     return None
 
 if __name__ == "__main__":
